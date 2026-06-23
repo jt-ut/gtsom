@@ -495,6 +495,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#gtsom.GTSOM.update_embedding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        update_embedding
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -661,6 +672,17 @@
     <span class="md-ellipsis">
       
         compute_topo
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gtsom.embedding.Embedding.update_coords" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        update_coords
       
     </span>
   </a>
@@ -889,6 +911,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#gtsom.GTSOM.update_embedding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        update_embedding
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1055,6 +1088,17 @@
     <span class="md-ellipsis">
       
         compute_topo
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gtsom.embedding.Embedding.update_coords" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        update_coords
       
     </span>
   </a>
@@ -4046,6 +4090,229 @@ created internally.</p>
 
 </div>
 
+<div class="doc doc-object doc-function">
+
+
+<h3 id="gtsom.GTSOM.update_embedding" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">update_embedding</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">update_embedding</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Replace the output-space embedding coordinates and refresh the
+neighbourhood weight matrix atomically.</p>
+<p>Calls <code>self.embed.update_coords(coords)</code> to validate the new
+positions, rebuild adjacency, and recompute geodesic distances.
+Then immediately recomputes <code>self.nbr_W</code> from the updated
+topology using the current annealing bandwidth
+<code>self.rho_schedule(self.age)</code>, so that the next :meth:<code>fit</code>
+call starts with a consistent neighbourhood structure.</p>
+<p>This method is the correct way to inject an externally computed
+coordinate update (e.g. from a tSNE or UMAP step) into a fitted
+GTSOM without leaving <code>nbr_W</code> stale.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>coords</code>
+            </td>
+            <td>
+                  <code>(<span title="array">array</span> - <span title="like">like</span>, <span title="shape">shape</span>(<a class="autorefs autorefs-internal" title="M
+
+
+  
+      property
+   (gtsom.gtsom.GTSOM.M)" href="#gtsom.GTSOM.M">M</a>, <span title="dim">dim</span>))</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>New low-dimensional prototype positions. Must match the
+current embedding shape <code>(M, dim)</code> exactly.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>self</code></td>            <td>
+                  <code><a class="autorefs autorefs-internal" title="gtsom.GTSOM (gtsom.gtsom.GTSOM)" href="#gtsom.GTSOM">GTSOM</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Returns self for method chaining.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="RuntimeError">RuntimeError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If :meth:<code>compile</code> has not been called yet (<code>self.rho_schedule</code>
+is None). The neighbourhood weight matrix cannot be recomputed
+without a valid annealing schedule.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Propagated from :meth:<code>Embedding.update_coords</code> if the shape
+of <code>coords</code> does not match the current embedding shape.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="quote">
+              <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1009</span>
+<span class="normal">1010</span>
+<span class="normal">1011</span>
+<span class="normal">1012</span>
+<span class="normal">1013</span>
+<span class="normal">1014</span>
+<span class="normal">1015</span>
+<span class="normal">1016</span>
+<span class="normal">1017</span>
+<span class="normal">1018</span>
+<span class="normal">1019</span>
+<span class="normal">1020</span>
+<span class="normal">1021</span>
+<span class="normal">1022</span>
+<span class="normal">1023</span>
+<span class="normal">1024</span>
+<span class="normal">1025</span>
+<span class="normal">1026</span>
+<span class="normal">1027</span>
+<span class="normal">1028</span>
+<span class="normal">1029</span>
+<span class="normal">1030</span>
+<span class="normal">1031</span>
+<span class="normal">1032</span>
+<span class="normal">1033</span>
+<span class="normal">1034</span>
+<span class="normal">1035</span>
+<span class="normal">1036</span>
+<span class="normal">1037</span>
+<span class="normal">1038</span>
+<span class="normal">1039</span>
+<span class="normal">1040</span>
+<span class="normal">1041</span>
+<span class="normal">1042</span>
+<span class="normal">1043</span>
+<span class="normal">1044</span>
+<span class="normal">1045</span>
+<span class="normal">1046</span>
+<span class="normal">1047</span>
+<span class="normal">1048</span>
+<span class="normal">1049</span>
+<span class="normal">1050</span>
+<span class="normal">1051</span>
+<span class="normal">1052</span>
+<span class="normal">1053</span>
+<span class="normal">1054</span>
+<span class="normal">1055</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_embedding</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coords</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Replace the output-space embedding coordinates and refresh the</span>
+<span class="sd">    neighbourhood weight matrix atomically.</span>
+
+<span class="sd">    Calls ``self.embed.update_coords(coords)`` to validate the new</span>
+<span class="sd">    positions, rebuild adjacency, and recompute geodesic distances.</span>
+<span class="sd">    Then immediately recomputes ``self.nbr_W`` from the updated</span>
+<span class="sd">    topology using the current annealing bandwidth</span>
+<span class="sd">    ``self.rho_schedule(self.age)``, so that the next :meth:`fit`</span>
+<span class="sd">    call starts with a consistent neighbourhood structure.</span>
+
+<span class="sd">    This method is the correct way to inject an externally computed</span>
+<span class="sd">    coordinate update (e.g. from a tSNE or UMAP step) into a fitted</span>
+<span class="sd">    GTSOM without leaving ``nbr_W`` stale.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    coords : array-like, shape (M, dim)</span>
+<span class="sd">        New low-dimensional prototype positions. Must match the</span>
+<span class="sd">        current embedding shape ``(M, dim)`` exactly.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    self : GTSOM</span>
+<span class="sd">        Returns self for method chaining.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    RuntimeError</span>
+<span class="sd">        If :meth:`compile` has not been called yet (``self.rho_schedule``</span>
+<span class="sd">        is None). The neighbourhood weight matrix cannot be recomputed</span>
+<span class="sd">        without a valid annealing schedule.</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        Propagated from :meth:`Embedding.update_coords` if the shape</span>
+<span class="sd">        of ``coords`` does not match the current embedding shape.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho_schedule</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="s2">&quot;compile() must be called before update_embedding(). &quot;</span>
+            <span class="s2">&quot;Call som.compile(rho_0=..., rho_f=..., target_epochs=...) &quot;</span>
+            <span class="s2">&quot;first so that a valid rho_schedule is available for &quot;</span>
+            <span class="s2">&quot;recomputing the neighbourhood weight matrix.&quot;</span>
+        <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">embed</span><span class="o">.</span><span class="n">update_coords</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_compute_neighborhood</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rho_schedule</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">age</span><span class="p">))</span>
+    <span class="k">return</span> <span class="bp">self</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
 
 
   </div>
@@ -5284,7 +5551,9 @@ compute_topo() can reconstruct exact grid adjacency.</p>
 
                   <details class="quote">
                     <summary>Source code in <code>src/gtsom/embedding.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">47</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
 <span class="normal">48</span>
 <span class="normal">49</span>
 <span class="normal">50</span>
@@ -5309,11 +5578,7 @@ compute_topo() can reconstruct exact grid adjacency.</p>
 <span class="normal">69</span>
 <span class="normal">70</span>
 <span class="normal">71</span>
-<span class="normal">72</span>
-<span class="normal">73</span>
-<span class="normal">74</span>
-<span class="normal">75</span>
-<span class="normal">76</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">adj_metric</span><span class="p">,</span> <span class="n">dist_metric</span><span class="o">=</span><span class="s2">&quot;geodesic&quot;</span><span class="p">,</span> <span class="n">_shape</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="normal">72</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">adj_metric</span><span class="p">,</span> <span class="n">dist_metric</span><span class="o">=</span><span class="s2">&quot;geodesic&quot;</span><span class="p">,</span> <span class="n">_shape</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Base constructor. Stores coords and metric specs, then calls</span>
 <span class="sd">    compute_topo() to build adjacency and dist.</span>
@@ -5337,10 +5602,8 @@ compute_topo() can reconstruct exact grid adjacency.</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">adj_metric</span> <span class="o">=</span> <span class="n">adj_metric</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">dist_metric</span> <span class="o">=</span> <span class="n">dist_metric</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_shape</span> <span class="o">=</span> <span class="n">_shape</span>  <span class="c1"># only set for grid embeddings</span>
-
     <span class="bp">self</span><span class="o">.</span><span class="n">adjacency</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">dist</span> <span class="o">=</span> <span class="kc">None</span>
-
     <span class="bp">self</span><span class="o">.</span><span class="n">_validate</span><span class="p">()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">compute_topo</span><span class="p">()</span>
 </code></pre></div></td></tr></table></div>
@@ -5452,7 +5715,11 @@ once at construction and rarely thereafter.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/embedding.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">121</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
 <span class="normal">122</span>
 <span class="normal">123</span>
 <span class="normal">124</span>
@@ -5480,13 +5747,7 @@ once at construction and rarely thereafter.</p>
 <span class="normal">146</span>
 <span class="normal">147</span>
 <span class="normal">148</span>
-<span class="normal">149</span>
-<span class="normal">150</span>
-<span class="normal">151</span>
-<span class="normal">152</span>
-<span class="normal">153</span>
-<span class="normal">154</span>
-<span class="normal">155</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">compute_topo</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">149</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">compute_topo</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Recompute adjacency from current coords (using adj_metric), then</span>
 <span class="sd">    recompute dist (using dist_metric).</span>
@@ -5504,7 +5765,6 @@ once at construction and rarely thereafter.</p>
         <span class="c1"># Delaunay correctly recovers hex grid 6-connectivity and</span>
         <span class="c1"># handles arbitrary/random coord layouts.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">adjacency</span> <span class="o">=</span> <span class="n">_delaunay_adjacency</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coords</span><span class="p">)</span>
-
     <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">adj_metric</span> <span class="o">==</span> <span class="s2">&quot;grid_rect&quot;</span><span class="p">:</span>
         <span class="c1"># Delaunay on a regular grid is ambiguous for square cells:</span>
         <span class="c1"># it picks one diagonal per square, missing the other half.</span>
@@ -5515,11 +5775,203 @@ once at construction and rarely thereafter.</p>
                 <span class="s2">&quot;Use Embedding.from_grid() to construct rect grid embeddings.&quot;</span>
             <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">adjacency</span> <span class="o">=</span> <span class="n">_rect_grid_adjacency</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_shape</span><span class="p">)</span>
-
     <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">adj_metric</span> <span class="o">==</span> <span class="s2">&quot;gabriel&quot;</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">adjacency</span> <span class="o">=</span> <span class="n">_gabriel_adjacency</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coords</span><span class="p">)</span>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">dist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_dist</span><span class="p">()</span>
+    <span class="k">return</span> <span class="bp">self</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="gtsom.embedding.Embedding.update_coords" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">update_coords</span>
+
+
+</h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">update_coords</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Replace the embedding coordinates and atomically rebuild topology.</p>
+<p>Sets <code>self.coords</code> to the provided array and immediately calls
+<code>self.compute_topo()</code> to rebuild <code>self.adjacency</code> and
+<code>self.dist</code> from the new positions. Callers do not need to
+trigger <code>compute_topo()</code> manually after changing coords.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>coords</code>
+            </td>
+            <td>
+                  <code>(<span title="array">array</span> - <span title="like">like</span>, <span title="shape">shape</span>(<a class="autorefs autorefs-internal" title="M
+
+
+  
+      property
+   (gtsom.embedding.Embedding.M)" href="#gtsom.embedding.Embedding.M">M</a>, <a class="autorefs autorefs-internal" title="dim
+
+
+  
+      property
+   (gtsom.embedding.Embedding.dim)" href="#gtsom.embedding.Embedding.dim">dim</a>))</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>New low-dimensional prototype positions. Must match the current
+shape <code>(M, dim)</code> exactly — neither the number of prototypes
+nor the embedding dimensionality may change.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>self</code></td>            <td>
+                  <code><a class="autorefs autorefs-internal" title="gtsom.embedding.Embedding" href="#gtsom.embedding.Embedding">Embedding</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Returns self for method chaining.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the shape of <code>coords</code> does not match the current
+<code>self.coords</code> shape <code>(M, dim)</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="quote">
+              <summary>Source code in <code>src/gtsom/embedding.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">151</span>
+<span class="normal">152</span>
+<span class="normal">153</span>
+<span class="normal">154</span>
+<span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span>
+<span class="normal">165</span>
+<span class="normal">166</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span>
+<span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span>
+<span class="normal">184</span>
+<span class="normal">185</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_coords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coords</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Replace the embedding coordinates and atomically rebuild topology.</span>
+
+<span class="sd">    Sets ``self.coords`` to the provided array and immediately calls</span>
+<span class="sd">    ``self.compute_topo()`` to rebuild ``self.adjacency`` and</span>
+<span class="sd">    ``self.dist`` from the new positions. Callers do not need to</span>
+<span class="sd">    trigger ``compute_topo()`` manually after changing coords.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    coords : array-like, shape (M, dim)</span>
+<span class="sd">        New low-dimensional prototype positions. Must match the current</span>
+<span class="sd">        shape ``(M, dim)`` exactly — neither the number of prototypes</span>
+<span class="sd">        nor the embedding dimensionality may change.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    self : Embedding</span>
+<span class="sd">        Returns self for method chaining.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If the shape of ``coords`` does not match the current</span>
+<span class="sd">        ``self.coords`` shape ``(M, dim)``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">expected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">shape</span>
+    <span class="k">if</span> <span class="n">coords</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">expected</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;coords shape mismatch: expected </span><span class="si">{</span><span class="n">expected</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">coords</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;The number of prototypes (M=</span><span class="si">{</span><span class="n">expected</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">) and embedding &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;dimensionality (dim=</span><span class="si">{</span><span class="n">expected</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">) must not change.&quot;</span>
+        <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">coords</span> <span class="o">=</span> <span class="n">coords</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">compute_topo</span><span class="p">()</span>
     <span class="k">return</span> <span class="bp">self</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -5629,23 +6081,23 @@ once at construction and rarely thereafter.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/embedding.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">194</span>
-<span class="normal">195</span>
-<span class="normal">196</span>
-<span class="normal">197</span>
-<span class="normal">198</span>
-<span class="normal">199</span>
-<span class="normal">200</span>
-<span class="normal">201</span>
-<span class="normal">202</span>
-<span class="normal">203</span>
-<span class="normal">204</span>
-<span class="normal">205</span>
-<span class="normal">206</span>
-<span class="normal">207</span>
-<span class="normal">208</span>
-<span class="normal">209</span>
-<span class="normal">210</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">227</span>
+<span class="normal">228</span>
+<span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
+<span class="normal">234</span>
+<span class="normal">235</span>
+<span class="normal">236</span>
+<span class="normal">237</span>
+<span class="normal">238</span>
+<span class="normal">239</span>
+<span class="normal">240</span>
+<span class="normal">241</span>
+<span class="normal">242</span>
+<span class="normal">243</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_delaunay</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">dist_metric</span><span class="o">=</span><span class="s2">&quot;geodesic&quot;</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Construct an Embedding from the Delaunay triangulation of coords.</span>
@@ -5783,46 +6235,46 @@ avoid the diagonal ambiguity of Delaunay on regular square grids.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/embedding.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">212</span>
-<span class="normal">213</span>
-<span class="normal">214</span>
-<span class="normal">215</span>
-<span class="normal">216</span>
-<span class="normal">217</span>
-<span class="normal">218</span>
-<span class="normal">219</span>
-<span class="normal">220</span>
-<span class="normal">221</span>
-<span class="normal">222</span>
-<span class="normal">223</span>
-<span class="normal">224</span>
-<span class="normal">225</span>
-<span class="normal">226</span>
-<span class="normal">227</span>
-<span class="normal">228</span>
-<span class="normal">229</span>
-<span class="normal">230</span>
-<span class="normal">231</span>
-<span class="normal">232</span>
-<span class="normal">233</span>
-<span class="normal">234</span>
-<span class="normal">235</span>
-<span class="normal">236</span>
-<span class="normal">237</span>
-<span class="normal">238</span>
-<span class="normal">239</span>
-<span class="normal">240</span>
-<span class="normal">241</span>
-<span class="normal">242</span>
-<span class="normal">243</span>
-<span class="normal">244</span>
-<span class="normal">245</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">245</span>
 <span class="normal">246</span>
 <span class="normal">247</span>
 <span class="normal">248</span>
 <span class="normal">249</span>
 <span class="normal">250</span>
-<span class="normal">251</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">251</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span>
+<span class="normal">276</span>
+<span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_grid</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;hex&quot;</span><span class="p">,</span> <span class="n">dist_metric</span><span class="o">=</span><span class="s2">&quot;geodesic&quot;</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Construct an Embedding from a regular grid.</span>
