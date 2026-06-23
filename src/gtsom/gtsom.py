@@ -1006,6 +1006,54 @@ class GTSOM:
         """
         self.nbr_W = self.kernel.compute(self.embed.dist, rho)
 
+    def update_embedding(self, coords):
+        """
+        Replace the output-space embedding coordinates and refresh the
+        neighbourhood weight matrix atomically.
+
+        Calls ``self.embed.update_coords(coords)`` to validate the new
+        positions, rebuild adjacency, and recompute geodesic distances.
+        Then immediately recomputes ``self.nbr_W`` from the updated
+        topology using the current annealing bandwidth
+        ``self.rho_schedule(self.age)``, so that the next :meth:`fit`
+        call starts with a consistent neighbourhood structure.
+
+        This method is the correct way to inject an externally computed
+        coordinate update (e.g. from a tSNE or UMAP step) into a fitted
+        GTSOM without leaving ``nbr_W`` stale.
+
+        Parameters
+        ----------
+        coords : array-like, shape (M, dim)
+            New low-dimensional prototype positions. Must match the
+            current embedding shape ``(M, dim)`` exactly.
+
+        Returns
+        -------
+        self : GTSOM
+            Returns self for method chaining.
+
+        Raises
+        ------
+        RuntimeError
+            If :meth:`compile` has not been called yet (``self.rho_schedule``
+            is None). The neighbourhood weight matrix cannot be recomputed
+            without a valid annealing schedule.
+        ValueError
+            Propagated from :meth:`Embedding.update_coords` if the shape
+            of ``coords`` does not match the current embedding shape.
+        """
+        if self.rho_schedule is None:
+            raise RuntimeError(
+                "compile() must be called before update_embedding(). "
+                "Call som.compile(rho_0=..., rho_f=..., target_epochs=...) "
+                "first so that a valid rho_schedule is available for "
+                "recomputing the neighbourhood weight matrix."
+            )
+        self.embed.update_coords(coords)
+        self._compute_neighborhood(self.rho_schedule(self.age))
+        return self
+
     def _update_prototypes(self, X):
         """
         Perform one batch SOM prototype update step.
