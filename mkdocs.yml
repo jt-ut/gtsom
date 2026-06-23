@@ -39,7 +39,7 @@ plugins:
 
 nav:
   - Home: index.md
-  - Tutorial: tutorials/gtsom_mnist_tutorial.ipynb
+  - Tutorial: gtsom_mnist_tutorial.ipynb
   - API Reference: api.md
 
 markdown_extensions:
