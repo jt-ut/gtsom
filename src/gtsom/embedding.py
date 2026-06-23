@@ -3,9 +3,7 @@ from scipy.spatial import Delaunay
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import shortest_path
 
-
 __all__ = ["Embedding"]
-
 
 class Embedding:
     """
@@ -68,10 +66,8 @@ class Embedding:
         self.adj_metric = adj_metric
         self.dist_metric = dist_metric
         self._shape = _shape  # only set for grid embeddings
-
         self.adjacency = None
         self.dist = None
-
         self._validate()
         self.compute_topo()
 
@@ -136,7 +132,6 @@ class Embedding:
             # Delaunay correctly recovers hex grid 6-connectivity and
             # handles arbitrary/random coord layouts.
             self.adjacency = _delaunay_adjacency(self.coords)
-
         elif self.adj_metric == "grid_rect":
             # Delaunay on a regular grid is ambiguous for square cells:
             # it picks one diagonal per square, missing the other half.
@@ -147,11 +142,49 @@ class Embedding:
                     "Use Embedding.from_grid() to construct rect grid embeddings."
                 )
             self.adjacency = _rect_grid_adjacency(self._shape)
-
         elif self.adj_metric == "gabriel":
             self.adjacency = _gabriel_adjacency(self.coords)
 
         self.dist = self._compute_dist()
+        return self
+
+    def update_coords(self, coords):
+        """
+        Replace the embedding coordinates and atomically rebuild topology.
+
+        Sets ``self.coords`` to the provided array and immediately calls
+        ``self.compute_topo()`` to rebuild ``self.adjacency`` and
+        ``self.dist`` from the new positions. Callers do not need to
+        trigger ``compute_topo()`` manually after changing coords.
+
+        Parameters
+        ----------
+        coords : array-like, shape (M, dim)
+            New low-dimensional prototype positions. Must match the current
+            shape ``(M, dim)`` exactly — neither the number of prototypes
+            nor the embedding dimensionality may change.
+
+        Returns
+        -------
+        self : Embedding
+            Returns self for method chaining.
+
+        Raises
+        ------
+        ValueError
+            If the shape of ``coords`` does not match the current
+            ``self.coords`` shape ``(M, dim)``.
+        """
+        coords = np.asarray(coords, dtype=float)
+        expected = self.coords.shape
+        if coords.shape != expected:
+            raise ValueError(
+                f"coords shape mismatch: expected {expected}, got {coords.shape}. "
+                f"The number of prototypes (M={expected[0]}) and embedding "
+                f"dimensionality (dim={expected[1]}) must not change."
+            )
+        self.coords = coords
+        self.compute_topo()
         return self
 
     # ------------------------------------------------------------------
@@ -284,9 +317,9 @@ def _delaunay_adjacency(coords):
     """
     M = coords.shape[0]
     dim = coords.shape[1]
-    tri = Delaunay(coords)
 
-    simplices = tri.simplices          # shape (n_simplices, dim+1)
+    tri = Delaunay(coords)
+    simplices = tri.simplices  # shape (n_simplices, dim+1)
     n_verts = dim + 1
 
     pair_indices = np.array(
@@ -334,10 +367,11 @@ def _rect_grid_adjacency(shape):
         nrows, ncols = shape
         M = nrows * ncols
         node = lambda i, j: i * ncols + j
-
         rows, cols = [], []
+
         # All offsets for 8-connectivity (di, dj) with di>=0 to avoid duplicates
         offsets = [(0, 1), (1, -1), (1, 0), (1, 1)]
+
         for i in range(nrows):
             for j in range(ncols):
                 n = node(i, j)
@@ -352,8 +386,8 @@ def _rect_grid_adjacency(shape):
         nrows, ncols, ndepth = shape
         M = nrows * ncols * ndepth
         node = lambda i, j, k: (i * ncols + j) * ndepth + k
-
         rows, cols = [], []
+
         # All offsets for 26-connectivity in 3D, upper triangle only
         offsets = [
             (di, dj, dk)
@@ -362,6 +396,7 @@ def _rect_grid_adjacency(shape):
             for dk in range(-1, 2)
             if (di, dj, dk) > (0, 0, 0)  # upper triangle
         ]
+
         for i in range(nrows):
             for j in range(ncols):
                 for k in range(ndepth):
@@ -416,8 +451,8 @@ def _gabriel_adjacency(coords):
         other_mask = np.ones(M, dtype=bool)
         other_mask[i] = False
         other_mask[j] = False
-        dists = np.linalg.norm(coords[other_mask] - mid, axis=1)
 
+        dists = np.linalg.norm(coords[other_mask] - mid, axis=1)
         if not np.any(dists < r):
             keep_rows.append(i)
             keep_cols.append(j)
@@ -455,17 +490,14 @@ def _rect_grid_coords(shape):
         nrows, ncols = shape
         r, c = np.meshgrid(np.arange(nrows), np.arange(ncols), indexing="ij")
         coords = np.stack([c.ravel(), r.ravel()], axis=1).astype(float)
-
     elif len(shape) == 3:
         nrows, ncols, ndepth = shape
         r, c, d = np.meshgrid(
             np.arange(nrows), np.arange(ncols), np.arange(ndepth), indexing="ij"
         )
         coords = np.stack([c.ravel(), r.ravel(), d.ravel()], axis=1).astype(float)
-
     else:
         raise ValueError(f"shape must be a 2- or 3-tuple, got length {len(shape)}")
-
     return coords
 
 
