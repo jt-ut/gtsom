@@ -70,7 +70,7 @@ def resolve_n_jobs(n_jobs):
 
 if _NUMBA_AVAILABLE:
 
-    @njit(parallel=True, cache=True, nogil=True)
+    @njit(parallel=True, nogil=True)
     def _update_W_numba(
         X,              # (N, d)  float64 — data matrix
         order,          # (N,)    int64   — argsort of BMU
@@ -257,5 +257,3 @@ else:
 
     PARALLEL = False
     _BACKEND = 'numpy'
-
-    
