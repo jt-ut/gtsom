@@ -1,0 +1,11 @@
+# Core runtime dependencies
+numpy>=1.24.4
+scipy>=1.13.1
+scikit-learn>=1.5.2
+matplotlib>=3.9.4
+
+# vqlp — vector quantisation backend (not on PyPI)
+git+https://github.com/jt-ut/vqlp.git
+
+# Optional: parallel prototype updates (install with pip install gtsom[parallel])
+# numba>=0.55

@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gtsom"
+version = "0.1.0"
+description = "General Topology Self-Organizing Map"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "scipy",
+    "faiss-cpu",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+]
+parallel = [
+    "numba>=0.55",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
