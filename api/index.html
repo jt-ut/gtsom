@@ -535,10 +535,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#gtsom.utils.ExponentialAnneal.from_target" class="md-nav__link">
+  <a href="#gtsom.utils.ExponentialAnneal.from_halflife" class="md-nav__link">
     <span class="md-ellipsis">
       
-        from_target
+        from_halflife
       
     </span>
   </a>
@@ -951,10 +951,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#gtsom.utils.ExponentialAnneal.from_target" class="md-nav__link">
+  <a href="#gtsom.utils.ExponentialAnneal.from_halflife" class="md-nav__link">
     <span class="md-ellipsis">
       
-        from_target
+        from_halflife
       
     </span>
   </a>
@@ -2462,7 +2462,7 @@ are not recognised, or M is out of range.</p>
     <span class="n">rho_0</span><span class="p">,</span>
     <span class="n">rho_f</span><span class="p">,</span>
     <span class="n">rho_tau</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">target_epochs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">halflife_epochs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">anneal</span><span class="o">=</span><span class="s2">&quot;exponential&quot;</span><span class="p">,</span>
     <span class="n">n_jobs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span>
@@ -2478,7 +2478,7 @@ the decay rate for a refinement phase — without affecting
 <p>To start learning from scratch, construct a new instance via
 :meth:<code>from_grid</code> or :meth:<code>from_data</code> rather than calling
 <code>compile()</code> again.</p>
-<p>Exactly one of <code>rho_tau</code> or <code>target_epochs</code> must be supplied.</p>
+<p>Exactly one of <code>rho_tau</code> or <code>halflife_epochs</code> must be supplied.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -2535,7 +2535,7 @@ the decay rate for a refinement phase — without affecting
             <td>
               <div class="doc-md-description">
                 <p>Exponential decay time constant in epochs. Mutually exclusive
-with <code>target_epochs</code>.</p>
+with <code>halflife_epochs</code>.</p>
               </div>
             </td>
             <td>
@@ -2544,16 +2544,17 @@ with <code>target_epochs</code>.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>target_epochs</code>
+                <code>halflife_epochs</code>
             </td>
             <td>
                   <code><span title="float">float</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Convenience alternative to <code>rho_tau</code>. The number of epochs
-over which rho decays from <code>rho_0</code> to <code>rho_f</code>.
-Mutually exclusive with <code>rho_tau</code>.</p>
+                <p>Convenience alternative to <code>rho_tau</code>. The epoch at which rho
+reaches the geometric midpoint <code>sqrt(rho_0 * rho_f)</code> — i.e.
+the half-life of the decay. The schedule clips at <code>rho_f</code> at
+<code>2 * halflife_epochs</code>. Mutually exclusive with <code>rho_tau</code>.</p>
               </div>
             </td>
             <td>
@@ -2617,7 +2618,7 @@ Ignored with a warning if numba is not installed.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>If neither or both of <code>rho_tau</code> and <code>target_epochs</code> are
+                <p>If neither or both of <code>rho_tau</code> and <code>halflife_epochs</code> are
 supplied, or if <code>anneal</code> is not recognised.</p>
               </div>
             </td>
@@ -2627,8 +2628,8 @@ supplied, or if <code>anneal</code> is not recognised.</p>
 
 
 <p><span class="doc-section-title">Examples:</span></p>
-    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">som</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">rho_0</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">rho_f</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">target_epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">som</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">rho_0</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">rho_f</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">target_epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">som</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">rho_0</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">rho_f</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">halflife_epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">som</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">rho_0</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">rho_f</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">halflife_epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
 </code></pre></div>
 
 
@@ -2718,7 +2719,8 @@ supplied, or if <code>anneal</code> is not recognised.</p>
 <span class="normal">552</span>
 <span class="normal">553</span>
 <span class="normal">554</span>
-<span class="normal">555</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">compile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rho_0</span><span class="p">,</span> <span class="n">rho_f</span><span class="p">,</span> <span class="n">rho_tau</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">target_epochs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="normal">555</span>
+<span class="normal">556</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">compile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rho_0</span><span class="p">,</span> <span class="n">rho_f</span><span class="p">,</span> <span class="n">rho_tau</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">halflife_epochs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
             <span class="n">anneal</span><span class="o">=</span><span class="s1">&#39;exponential&#39;</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Set the neighbourhood bandwidth annealing schedule.</span>
@@ -2732,7 +2734,7 @@ supplied, or if <code>anneal</code> is not recognised.</p>
 <span class="sd">    :meth:`from_grid` or :meth:`from_data` rather than calling</span>
 <span class="sd">    ``compile()`` again.</span>
 
-<span class="sd">    Exactly one of ``rho_tau`` or ``target_epochs`` must be supplied.</span>
+<span class="sd">    Exactly one of ``rho_tau`` or ``halflife_epochs`` must be supplied.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -2743,11 +2745,12 @@ supplied, or if <code>anneal</code> is not recognised.</p>
 <span class="sd">        Final (minimum) neighbourhood bandwidth.</span>
 <span class="sd">    rho_tau : float, optional</span>
 <span class="sd">        Exponential decay time constant in epochs. Mutually exclusive</span>
-<span class="sd">        with ``target_epochs``.</span>
-<span class="sd">    target_epochs : float, optional</span>
-<span class="sd">        Convenience alternative to ``rho_tau``. The number of epochs</span>
-<span class="sd">        over which rho decays from ``rho_0`` to ``rho_f``.</span>
-<span class="sd">        Mutually exclusive with ``rho_tau``.</span>
+<span class="sd">        with ``halflife_epochs``.</span>
+<span class="sd">    halflife_epochs : float, optional</span>
+<span class="sd">        Convenience alternative to ``rho_tau``. The epoch at which rho</span>
+<span class="sd">        reaches the geometric midpoint ``sqrt(rho_0 * rho_f)`` — i.e.</span>
+<span class="sd">        the half-life of the decay. The schedule clips at ``rho_f`` at</span>
+<span class="sd">        ``2 * halflife_epochs``. Mutually exclusive with ``rho_tau``.</span>
 <span class="sd">    anneal : {&#39;exponential&#39;}, default &#39;exponential&#39;</span>
 <span class="sd">        Annealing schedule type. Currently only exponential decay</span>
 <span class="sd">        is supported.</span>
@@ -2762,26 +2765,26 @@ supplied, or if <code>anneal</code> is not recognised.</p>
 <span class="sd">    Raises</span>
 <span class="sd">    ------</span>
 <span class="sd">    ValueError</span>
-<span class="sd">        If neither or both of ``rho_tau`` and ``target_epochs`` are</span>
+<span class="sd">        If neither or both of ``rho_tau`` and ``halflife_epochs`` are</span>
 <span class="sd">        supplied, or if ``anneal`` is not recognised.</span>
 
 <span class="sd">    Examples</span>
 <span class="sd">    --------</span>
-<span class="sd">    &gt;&gt;&gt; som.compile(rho_0=5.0, rho_f=0.3, target_epochs=50)</span>
-<span class="sd">    &gt;&gt;&gt; som.compile(rho_0=5.0, rho_f=0.3, target_epochs=50, n_jobs=4)</span>
+<span class="sd">    &gt;&gt;&gt; som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50)</span>
+<span class="sd">    &gt;&gt;&gt; som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50, n_jobs=4)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">anneal</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;exponential&#39;</span><span class="p">,):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">&quot;anneal must be &#39;exponential&#39;, got </span><span class="si">{</span><span class="n">anneal</span><span class="si">!r}</span><span class="s2">. &quot;</span>
             <span class="sa">f</span><span class="s2">&quot;Additional schedules may be added in future.&quot;</span>
         <span class="p">)</span>
-    <span class="k">if</span> <span class="n">rho_tau</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">target_epochs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">rho_tau</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">halflife_epochs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;Exactly one of rho_tau or target_epochs must be supplied.&quot;</span>
+            <span class="s2">&quot;Exactly one of rho_tau or halflife_epochs must be supplied.&quot;</span>
         <span class="p">)</span>
-    <span class="k">if</span> <span class="n">rho_tau</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">target_epochs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">rho_tau</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">halflife_epochs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;Supply either rho_tau or target_epochs, not both.&quot;</span>
+            <span class="s2">&quot;Supply either rho_tau or halflife_epochs, not both.&quot;</span>
         <span class="p">)</span>
 
     <span class="k">if</span> <span class="n">anneal</span> <span class="o">==</span> <span class="s1">&#39;exponential&#39;</span><span class="p">:</span>
@@ -2790,8 +2793,8 @@ supplied, or if <code>anneal</code> is not recognised.</p>
                 <span class="n">initial</span><span class="o">=</span><span class="n">rho_0</span><span class="p">,</span> <span class="n">final</span><span class="o">=</span><span class="n">rho_f</span><span class="p">,</span> <span class="n">tau</span><span class="o">=</span><span class="n">rho_tau</span>
             <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">rho_schedule</span> <span class="o">=</span> <span class="n">ExponentialAnneal</span><span class="o">.</span><span class="n">from_target</span><span class="p">(</span>
-                <span class="n">initial</span><span class="o">=</span><span class="n">rho_0</span><span class="p">,</span> <span class="n">final</span><span class="o">=</span><span class="n">rho_f</span><span class="p">,</span> <span class="n">target_epochs</span><span class="o">=</span><span class="n">target_epochs</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rho_schedule</span> <span class="o">=</span> <span class="n">ExponentialAnneal</span><span class="o">.</span><span class="n">from_halflife</span><span class="p">(</span>
+                <span class="n">initial</span><span class="o">=</span><span class="n">rho_0</span><span class="p">,</span> <span class="n">final</span><span class="o">=</span><span class="n">rho_f</span><span class="p">,</span> <span class="n">halflife_epochs</span><span class="o">=</span><span class="n">halflife_epochs</span>
             <span class="p">)</span>
 
     <span class="c1"># Resolve and store thread count</span>
@@ -2972,8 +2975,7 @@ preprocess X before calling fit.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">561</span>
-<span class="normal">562</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">562</span>
 <span class="normal">563</span>
 <span class="normal">564</span>
 <span class="normal">565</span>
@@ -3066,7 +3068,8 @@ preprocess X before calling fit.</p>
 <span class="normal">652</span>
 <span class="normal">653</span>
 <span class="normal">654</span>
-<span class="normal">655</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">n_epochs</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">plot_every</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
+<span class="normal">655</span>
+<span class="normal">656</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">n_epochs</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">plot_every</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Fit the GTSOM to data X using batch SOM learning.</span>
 
@@ -3113,7 +3116,7 @@ preprocess X before calling fit.</p>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho_schedule</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
             <span class="s2">&quot;compile() must be called before fit(). &quot;</span>
-            <span class="s2">&quot;Call som.compile(rho_0=..., rho_f=..., target_epochs=...) first.&quot;</span>
+            <span class="s2">&quot;Call som.compile(rho_0=..., rho_f=..., halflife_epochs=...) first.&quot;</span>
         <span class="p">)</span>
 
     <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
@@ -3267,8 +3270,7 @@ preprocess X before calling fit.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">657</span>
-<span class="normal">658</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">658</span>
 <span class="normal">659</span>
 <span class="normal">660</span>
 <span class="normal">661</span>
@@ -3293,7 +3295,8 @@ preprocess X before calling fit.</p>
 <span class="normal">680</span>
 <span class="normal">681</span>
 <span class="normal">682</span>
-<span class="normal">683</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">):</span>
+<span class="normal">683</span>
+<span class="normal">684</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Map data points to output coordinates via BMU lookup.</span>
 
@@ -3419,8 +3422,7 @@ preprocess X before calling fit.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">685</span>
-<span class="normal">686</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">686</span>
 <span class="normal">687</span>
 <span class="normal">688</span>
 <span class="normal">689</span>
@@ -3436,7 +3438,8 @@ preprocess X before calling fit.</p>
 <span class="normal">699</span>
 <span class="normal">700</span>
 <span class="normal">701</span>
-<span class="normal">702</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_kwargs</span><span class="p">):</span>
+<span class="normal">702</span>
+<span class="normal">703</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Fit the GTSOM and return output coordinates.</span>
 
@@ -3705,8 +3708,7 @@ created internally.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">708</span>
-<span class="normal">709</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">709</span>
 <span class="normal">710</span>
 <span class="normal">711</span>
 <span class="normal">712</span>
@@ -3894,7 +3896,8 @@ created internally.</p>
 <span class="normal">894</span>
 <span class="normal">895</span>
 <span class="normal">896</span>
-<span class="normal">897</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">plot</span><span class="p">(</span>
+<span class="normal">897</span>
+<span class="normal">898</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">plot</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">color_by</span><span class="o">=</span><span class="s1">&#39;mqe&#39;</span><span class="p">,</span>
     <span class="n">cmap_continuous</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span>
@@ -4214,8 +4217,7 @@ of <code>coords</code> does not match the current embedding shape.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1009</span>
-<span class="normal">1010</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1010</span>
 <span class="normal">1011</span>
 <span class="normal">1012</span>
 <span class="normal">1013</span>
@@ -4260,7 +4262,8 @@ of <code>coords</code> does not match the current embedding shape.</p>
 <span class="normal">1052</span>
 <span class="normal">1053</span>
 <span class="normal">1054</span>
-<span class="normal">1055</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_embedding</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coords</span><span class="p">):</span>
+<span class="normal">1055</span>
+<span class="normal">1056</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_embedding</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coords</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Replace the output-space embedding coordinates and refresh the</span>
 <span class="sd">    neighbourhood weight matrix atomically.</span>
@@ -4300,7 +4303,7 @@ of <code>coords</code> does not match the current embedding shape.</p>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rho_schedule</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
             <span class="s2">&quot;compile() must be called before update_embedding(). &quot;</span>
-            <span class="s2">&quot;Call som.compile(rho_0=..., rho_f=..., target_epochs=...) &quot;</span>
+            <span class="s2">&quot;Call som.compile(rho_0=..., rho_f=..., halflife_epochs=...) &quot;</span>
             <span class="s2">&quot;first so that a valid rho_schedule is available for &quot;</span>
             <span class="s2">&quot;recomputing the neighbourhood weight matrix.&quot;</span>
         <span class="p">)</span>
@@ -4402,8 +4405,8 @@ at this value for all ages beyond <code>target_epochs</code>.</p>
             <td>
               <div class="doc-md-description">
                 <p>Decay time constant in epochs. Smaller values decay faster.
-Computed internally from <code>target_epochs</code> when that convenience
-argument is used instead.</p>
+Computed internally from <code>halflife_epochs</code> when that convenience
+constructor is used instead.</p>
               </div>
             </td>
             <td>
@@ -4424,10 +4427,12 @@ argument is used instead.</p>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">schedule</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span>  <span class="c1"># far beyond target — clipped at final</span>
 <span class="go">0.3</span>
 </code></pre></div>
-    <p>Construction from a target epoch count:</p>
-    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">schedule</span> <span class="o">=</span> <span class="n">ExponentialAnneal</span><span class="o">.</span><span class="n">from_target</span><span class="p">(</span><span class="n">initial</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">final</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span>
-<span class="gp">... </span>                                          <span class="n">target_epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="nb">round</span><span class="p">(</span><span class="n">schedule</span><span class="p">(</span><span class="mi">50</span><span class="p">),</span> <span class="mi">6</span><span class="p">)</span>
+    <p>Construction from a half-life epoch count:</p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">schedule</span> <span class="o">=</span> <span class="n">ExponentialAnneal</span><span class="o">.</span><span class="n">from_halflife</span><span class="p">(</span><span class="n">initial</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">final</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span>
+<span class="gp">... </span>                                            <span class="n">halflife_epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">round</span><span class="p">(</span><span class="n">schedule</span><span class="p">(</span><span class="mi">50</span><span class="p">),</span> <span class="mi">6</span><span class="p">)</span>  <span class="c1"># geometric midpoint of 5.0 and 0.3</span>
+<span class="go">1.2247...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">round</span><span class="p">(</span><span class="n">schedule</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span> <span class="mi">6</span><span class="p">)</span>  <span class="c1"># clipped at final</span>
 <span class="go">0.3</span>
 </code></pre></div>
 
@@ -4440,9 +4445,7 @@ argument is used instead.</p>
 
                   <details class="quote">
                     <summary>Source code in <code>src/gtsom/utils.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">211</span>
-<span class="normal">212</span>
-<span class="normal">213</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">213</span>
 <span class="normal">214</span>
 <span class="normal">215</span>
 <span class="normal">216</span>
@@ -4459,7 +4462,9 @@ argument is used instead.</p>
 <span class="normal">227</span>
 <span class="normal">228</span>
 <span class="normal">229</span>
-<span class="normal">230</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial</span><span class="p">,</span> <span class="n">final</span><span class="p">,</span> <span class="n">tau</span><span class="p">):</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial</span><span class="p">,</span> <span class="n">final</span><span class="p">,</span> <span class="n">tau</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">initial</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;initial must be positive, got </span><span class="si">{</span><span class="n">initial</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">final</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
@@ -4498,8 +4503,8 @@ argument is used instead.</p>
 <div class="doc doc-object doc-function">
 
 
-<h3 id="gtsom.utils.ExponentialAnneal.from_target" class="doc doc-heading">
-            <span class="doc doc-object-name doc-function-name">from_target</span>
+<h3 id="gtsom.utils.ExponentialAnneal.from_halflife" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">from_halflife</span>
 
 
   <span class="doc doc-labels">
@@ -4507,19 +4512,24 @@ argument is used instead.</p>
   </span>
 
 </h3>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">from_target</span><span class="p">(</span><span class="n">initial</span><span class="p">,</span> <span class="n">final</span><span class="p">,</span> <span class="n">target_epochs</span><span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">from_halflife</span><span class="p">(</span><span class="n">initial</span><span class="p">,</span> <span class="n">final</span><span class="p">,</span> <span class="n">halflife_epochs</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>Construct a schedule where <code>target_epochs</code> is the half-life.</p>
-<p><code>target_epochs</code> is the number of epochs at which rho reaches
-the geometric midpoint between <code>initial</code> and <code>final</code> on a
-log scale. The schedule continues decaying beyond this point
-and is clipped at <code>final</code> at <code>2 * target_epochs</code>.</p>
-<p>This gives an intuitive interpretation: the parameter is still
-actively decaying throughout the first <code>target_epochs</code> epochs,
-and has fully settled by <code>2 * target_epochs</code>.</p>
+        <p>Construct a schedule where <code>halflife_epochs</code> is the half-life.</p>
+<p><code>halflife_epochs</code> is the number of epochs at which the parameter
+reaches the geometric midpoint between <code>initial</code> and <code>final</code> on
+a log scale — i.e. <code>sqrt(initial * final)</code>. This is the true
+half-life of the decay in log space.</p>
+<p>The schedule continues decaying beyond this point and is clipped at
+<code>final</code> at <code>2 * halflife_epochs</code>, so the parameter has fully
+settled by that point.</p>
+<p>This gives an intuitive two-phase interpretation:
+  - Phase 1 (0 → halflife_epochs): active decay, halfway there in log space.
+  - Phase 2 (halflife_epochs → 2<em>halflife_epochs): second half of decay,
+    settling toward <code>final</code>.
+  - Beyond 2</em>halflife_epochs: clipped at <code>final</code>.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -4559,7 +4569,7 @@ and has fully settled by <code>2 * target_epochs</code>.</p>
             <td>
               <div class="doc-md-description">
                 <p>Floor value; clipped at this value from age <code>2 *
-target_epochs</code> onward.</p>
+halflife_epochs</code> onward.</p>
               </div>
             </td>
             <td>
@@ -4568,15 +4578,15 @@ target_epochs</code> onward.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>target_epochs</code>
+                <code>halflife_epochs</code>
             </td>
             <td>
                   <code><span title="float">float</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Half-life in epochs — the age at which the parameter reaches
-the geometric midpoint <code>sqrt(initial * final)</code>.</p>
+                <p>The age at which the parameter reaches the geometric midpoint
+<code>sqrt(initial * final)</code>.</p>
               </div>
             </td>
             <td>
@@ -4611,8 +4621,8 @@ the geometric midpoint <code>sqrt(initial * final)</code>.</p>
 
 
 <p><span class="doc-section-title">Examples:</span></p>
-    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">ExponentialAnneal</span><span class="o">.</span><span class="n">from_target</span><span class="p">(</span><span class="n">initial</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span> <span class="n">final</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span>
-<span class="gp">... </span>                                   <span class="n">target_epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">ExponentialAnneal</span><span class="o">.</span><span class="n">from_halflife</span><span class="p">(</span><span class="n">initial</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span> <span class="n">final</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span>
+<span class="gp">... </span>                                     <span class="n">halflife_epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="nb">round</span><span class="p">(</span><span class="n">s</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>
 <span class="go">3.0</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="nb">round</span><span class="p">(</span><span class="n">s</span><span class="p">(</span><span class="mi">50</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>   <span class="c1"># geometric midpoint of 3.0 and 0.3</span>
@@ -4624,9 +4634,7 @@ the geometric midpoint <code>sqrt(initial * final)</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">232</span>
-<span class="normal">233</span>
-<span class="normal">234</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">234</span>
 <span class="normal">235</span>
 <span class="normal">236</span>
 <span class="normal">237</span>
@@ -4674,19 +4682,33 @@ the geometric midpoint <code>sqrt(initial * final)</code>.</p>
 <span class="normal">279</span>
 <span class="normal">280</span>
 <span class="normal">281</span>
-<span class="normal">282</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">from_target</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">initial</span><span class="p">,</span> <span class="n">final</span><span class="p">,</span> <span class="n">target_epochs</span><span class="p">):</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">from_halflife</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">initial</span><span class="p">,</span> <span class="n">final</span><span class="p">,</span> <span class="n">halflife_epochs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Construct a schedule where ``target_epochs`` is the half-life.</span>
+<span class="sd">    Construct a schedule where ``halflife_epochs`` is the half-life.</span>
 
-<span class="sd">    ``target_epochs`` is the number of epochs at which rho reaches</span>
-<span class="sd">    the geometric midpoint between ``initial`` and ``final`` on a</span>
-<span class="sd">    log scale. The schedule continues decaying beyond this point</span>
-<span class="sd">    and is clipped at ``final`` at ``2 * target_epochs``.</span>
+<span class="sd">    ``halflife_epochs`` is the number of epochs at which the parameter</span>
+<span class="sd">    reaches the geometric midpoint between ``initial`` and ``final`` on</span>
+<span class="sd">    a log scale — i.e. ``sqrt(initial * final)``. This is the true</span>
+<span class="sd">    half-life of the decay in log space.</span>
 
-<span class="sd">    This gives an intuitive interpretation: the parameter is still</span>
-<span class="sd">    actively decaying throughout the first ``target_epochs`` epochs,</span>
-<span class="sd">    and has fully settled by ``2 * target_epochs``.</span>
+<span class="sd">    The schedule continues decaying beyond this point and is clipped at</span>
+<span class="sd">    ``final`` at ``2 * halflife_epochs``, so the parameter has fully</span>
+<span class="sd">    settled by that point.</span>
+
+<span class="sd">    This gives an intuitive two-phase interpretation:</span>
+<span class="sd">      - Phase 1 (0 → halflife_epochs): active decay, halfway there in log space.</span>
+<span class="sd">      - Phase 2 (halflife_epochs → 2*halflife_epochs): second half of decay,</span>
+<span class="sd">        settling toward ``final``.</span>
+<span class="sd">      - Beyond 2*halflife_epochs: clipped at ``final``.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -4694,10 +4716,10 @@ the geometric midpoint <code>sqrt(initial * final)</code>.</p>
 <span class="sd">        Starting value at age=0.</span>
 <span class="sd">    final : float</span>
 <span class="sd">        Floor value; clipped at this value from age ``2 *</span>
-<span class="sd">        target_epochs`` onward.</span>
-<span class="sd">    target_epochs : float</span>
-<span class="sd">        Half-life in epochs — the age at which the parameter reaches</span>
-<span class="sd">        the geometric midpoint ``sqrt(initial * final)``.</span>
+<span class="sd">        halflife_epochs`` onward.</span>
+<span class="sd">    halflife_epochs : float</span>
+<span class="sd">        The age at which the parameter reaches the geometric midpoint</span>
+<span class="sd">        ``sqrt(initial * final)``.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -4705,8 +4727,8 @@ the geometric midpoint <code>sqrt(initial * final)</code>.</p>
 
 <span class="sd">    Examples</span>
 <span class="sd">    --------</span>
-<span class="sd">    &gt;&gt;&gt; s = ExponentialAnneal.from_target(initial=3.0, final=0.3,</span>
-<span class="sd">    ...                                    target_epochs=50)</span>
+<span class="sd">    &gt;&gt;&gt; s = ExponentialAnneal.from_halflife(initial=3.0, final=0.3,</span>
+<span class="sd">    ...                                      halflife_epochs=50)</span>
 <span class="sd">    &gt;&gt;&gt; round(s(0), 4)</span>
 <span class="sd">    3.0</span>
 <span class="sd">    &gt;&gt;&gt; round(s(50), 4)   # geometric midpoint of 3.0 and 0.3</span>
@@ -4714,16 +4736,16 @@ the geometric midpoint <code>sqrt(initial * final)</code>.</p>
 <span class="sd">    &gt;&gt;&gt; round(s(100), 4)  # clipped at final</span>
 <span class="sd">    0.3</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">target_epochs</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">halflife_epochs</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;target_epochs must be positive, got </span><span class="si">{</span><span class="n">target_epochs</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;halflife_epochs must be positive, got </span><span class="si">{</span><span class="n">halflife_epochs</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="p">)</span>
-    <span class="c1"># tau such that age=target_epochs gives the geometric midpoint:</span>
-    <span class="c1"># initial * (final/initial)^(target_epochs/tau) = sqrt(initial*final)</span>
-    <span class="c1"># =&gt; (final/initial)^(target_epochs/tau) = sqrt(final/initial)</span>
-    <span class="c1"># =&gt; target_epochs/tau = 0.5</span>
-    <span class="c1"># =&gt; tau = 2 * target_epochs</span>
-    <span class="n">tau</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">target_epochs</span>
+    <span class="c1"># tau such that age=halflife_epochs gives the geometric midpoint:</span>
+    <span class="c1"># initial * (final/initial)^(halflife_epochs/tau) = sqrt(initial*final)</span>
+    <span class="c1"># =&gt; (final/initial)^(halflife_epochs/tau) = sqrt(final/initial)</span>
+    <span class="c1"># =&gt; halflife_epochs/tau = 0.5</span>
+    <span class="c1"># =&gt; tau = 2 * halflife_epochs</span>
+    <span class="n">tau</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">halflife_epochs</span>
     <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">initial</span><span class="o">=</span><span class="n">initial</span><span class="p">,</span> <span class="n">final</span><span class="o">=</span><span class="n">final</span><span class="p">,</span> <span class="n">tau</span><span class="o">=</span><span class="n">tau</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -4805,15 +4827,7 @@ the geometric midpoint <code>sqrt(initial * final)</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">284</span>
-<span class="normal">285</span>
-<span class="normal">286</span>
-<span class="normal">287</span>
-<span class="normal">288</span>
-<span class="normal">289</span>
-<span class="normal">290</span>
-<span class="normal">291</span>
-<span class="normal">292</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">292</span>
 <span class="normal">293</span>
 <span class="normal">294</span>
 <span class="normal">295</span>
@@ -4822,7 +4836,15 @@ the geometric midpoint <code>sqrt(initial * final)</code>.</p>
 <span class="normal">298</span>
 <span class="normal">299</span>
 <span class="normal">300</span>
-<span class="normal">301</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">age</span><span class="p">):</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span>
+<span class="normal">308</span>
+<span class="normal">309</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">age</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Return the annealed parameter value at the given age.</span>
 
@@ -4920,15 +4942,7 @@ training begins.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">303</span>
-<span class="normal">304</span>
-<span class="normal">305</span>
-<span class="normal">306</span>
-<span class="normal">307</span>
-<span class="normal">308</span>
-<span class="normal">309</span>
-<span class="normal">310</span>
-<span class="normal">311</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">311</span>
 <span class="normal">312</span>
 <span class="normal">313</span>
 <span class="normal">314</span>
@@ -4937,7 +4951,15 @@ training begins.</p>
 <span class="normal">317</span>
 <span class="normal">318</span>
 <span class="normal">319</span>
-<span class="normal">320</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_epochs</span><span class="p">):</span>
+<span class="normal">320</span>
+<span class="normal">321</span>
+<span class="normal">322</span>
+<span class="normal">323</span>
+<span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_epochs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Return the annealed values for epochs 0 through n_epochs - 1.</span>
 
