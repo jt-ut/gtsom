@@ -548,16 +548,16 @@ class GTSOM:
             in [0, 1]. See :meth:`_compute_neighborhood` for a full
             description of the blending rule.
         nbr_topo_alpha_f : float, optional
-            Final (minimum) value of the topology-blending parameter.
-            Must be in [0, 1] and <= ``nbr_topo_alpha_0``. If not
-            supplied, defaults to ``nbr_topo_alpha_0``, producing a
-            flat (non-annealing) schedule — equivalent to the fixed
-            ``nbr_topo_alpha`` behaviour of earlier versions.
+            Final value of the topology-blending parameter. Must be in
+            [0, 1] and must differ from ``nbr_topo_alpha_0`` if annealing
+            is desired. If not supplied, defaults to ``nbr_topo_alpha_0``,
+            producing a flat (non-annealing) schedule — equivalent to the
+            fixed ``nbr_topo_alpha`` behaviour of earlier versions.
 
-            Annealing ``nbr_topo_alpha`` downward over training reflects
-            the intuition that CONN becomes a more reliable guide to
-            manifold structure as prototypes settle, so its influence on
-            the neighbourhood update should increase over time.
+            If ``nbr_topo_alpha_f < nbr_topo_alpha_0``, the schedule
+            decays (less CONN influence over time). If
+            ``nbr_topo_alpha_f > nbr_topo_alpha_0``, the schedule
+            increases (more CONN influence over time).
 
         Raises
         ------

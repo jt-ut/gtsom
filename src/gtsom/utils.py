@@ -169,36 +169,55 @@ class ExponentialAnneal:
 
         value(age) = initial * (final / initial) ** (age / tau)
 
-    The result is clipped at ``final`` for all ``age >= target_epochs``,
+    The result is clipped at ``final`` once the schedule reaches it,
     ensuring the final value is respected exactly regardless of how many
     epochs have elapsed.
 
-    Intended for use with any parameter that requires monotonic decay
-    during training — neighbourhood bandwidth (rho), learning rate, etc.
+    Supports both decreasing schedules (``final < initial``, e.g. annealing
+    a neighbourhood bandwidth from broad to narrow) and increasing schedules
+    (``final > initial``, e.g. shifting neighbourhood influence from
+    lattice-dominated toward CONN-dominated over training). The direction
+    is inferred automatically from the relationship between ``initial``
+    and ``final``; the formula and clipping behaviour adapt accordingly.
+
+    Intended for use with any parameter that requires monotonic change
+    during training — neighbourhood bandwidth (rho), topology-blending
+    weight (nbr_topo_alpha), learning rate, etc.
 
     Parameters
     ----------
     initial : float
-        Starting value of the parameter (at age=0).
+        Starting value of the parameter (at age=0). Must be positive.
     final : float
-        Minimum (floor) value of the parameter. The schedule is clipped
-        at this value for all ages beyond ``target_epochs``.
+        Target value of the parameter. Must be positive. If ``final <
+        initial``, the schedule decays; if ``final > initial``, the
+        schedule increases; if ``final == initial``, the schedule is
+        flat and returns ``initial`` at every age.
     tau : float
-        Decay time constant in epochs. Smaller values decay faster.
+        Time constant in epochs. Controls how quickly the parameter moves
+        from ``initial`` toward ``final``. Smaller values change faster.
         Computed internally from ``halflife_epochs`` when that convenience
         constructor is used instead.
 
     Examples
     --------
-    Direct construction with tau:
+    Decreasing schedule (decay):
 
     >>> schedule = ExponentialAnneal(initial=5.0, final=0.3, tau=20)
     >>> schedule(0)
     5.0
-    >>> schedule(20)   # one tau — falls to ~37% of the initial range
+    >>> schedule(20)   # one tau — decayed toward final
     0.549...
     >>> schedule(1000)  # far beyond target — clipped at final
     0.3
+
+    Increasing schedule (ramp):
+
+    >>> schedule = ExponentialAnneal(initial=0.2, final=0.9, tau=20)
+    >>> schedule(0)
+    0.2
+    >>> schedule(1000)  # far beyond target — clipped at final
+    0.9
 
     Construction from a half-life epoch count:
 
@@ -215,11 +234,6 @@ class ExponentialAnneal:
             raise ValueError(f"initial must be positive, got {initial}")
         if final <= 0:
             raise ValueError(f"final must be positive, got {final}")
-        if final >= initial:
-            raise ValueError(
-                f"final ({final}) must be less than initial ({initial}) "
-                f"for a decay schedule."
-            )
         if tau <= 0:
             raise ValueError(f"tau must be positive, got {tau}")
 
@@ -227,9 +241,19 @@ class ExponentialAnneal:
         self.final = float(final)
         self.tau = float(tau)
 
-        # Precompute target_epochs: the age at which the raw exponential
-        # first reaches final (used for clipping and __repr__)
-        self.target_epochs = -self.tau * np.log(self.final / self.initial)
+        # Detect flat schedule (initial == final); skip direction and
+        # target_epochs calculations that would involve log(1) = 0 or
+        # division by zero in tau-dependent expressions.
+        self._flat = self.initial == self.final
+        if self._flat:
+            self._increasing  = False   # unused, but defined for consistency
+            self.target_epochs = 0.0
+        else:
+            # Infer direction from initial and final values
+            self._increasing = self.final > self.initial
+            # Age at which the raw exponential first reaches final.
+            # abs() ensures positive regardless of direction.
+            self.target_epochs = self.tau * abs(np.log(self.final / self.initial))
 
     @classmethod
     def from_halflife(cls, initial, final, halflife_epochs):
@@ -293,8 +317,10 @@ class ExponentialAnneal:
         """
         Return the annealed parameter value at the given age.
 
-        The raw exponential is clipped at ``final`` for all ages beyond
-        ``target_epochs``, ensuring the floor is respected exactly.
+        Returns ``final`` immediately for flat schedules (``initial ==
+        final``). Otherwise the raw exponential is clipped at ``final``
+        once the schedule reaches it, with clip direction inferred from
+        whether the schedule is increasing or decreasing.
 
         Parameters
         ----------
@@ -305,8 +331,13 @@ class ExponentialAnneal:
         -------
         float
         """
+        if self._flat:
+            return self.final
         raw = self.initial * (self.final / self.initial) ** (age / self.tau)
-        return float(max(raw, self.final))
+        if self._increasing:
+            return float(min(raw, self.final))
+        else:
+            return float(max(raw, self.final))
 
     def values(self, n_epochs):
         """
@@ -323,11 +354,22 @@ class ExponentialAnneal:
         -------
         np.ndarray, shape (n_epochs,)
         """
+        if self._flat:
+            return np.full(n_epochs, self.final)
         ages = np.arange(n_epochs, dtype=float)
         raw = self.initial * (self.final / self.initial) ** (ages / self.tau)
-        return np.maximum(raw, self.final).astype(float)
+        if self._increasing:
+            return np.minimum(raw, self.final).astype(float)
+        else:
+            return np.maximum(raw, self.final).astype(float)
 
     def __repr__(self):
+        if self._flat:
+            return (
+                f"ExponentialAnneal("
+                f"initial={self.initial}, final={self.final}, "
+                f"tau={self.tau:.4g}, flat=True)"
+            )
         return (
             f"ExponentialAnneal("
             f"initial={self.initial}, "
