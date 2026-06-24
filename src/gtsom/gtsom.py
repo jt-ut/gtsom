@@ -468,7 +468,7 @@ class GTSOM:
     # Training configuration
     # ------------------------------------------------------------------
 
-    def compile(self, rho_0, rho_f, rho_tau=None, target_epochs=None,
+    def compile(self, rho_0, rho_f, rho_tau=None, halflife_epochs=None,
                 anneal='exponential', n_jobs=None):
         """
         Set the neighbourhood bandwidth annealing schedule.
@@ -482,7 +482,7 @@ class GTSOM:
         :meth:`from_grid` or :meth:`from_data` rather than calling
         ``compile()`` again.
 
-        Exactly one of ``rho_tau`` or ``target_epochs`` must be supplied.
+        Exactly one of ``rho_tau`` or ``halflife_epochs`` must be supplied.
 
         Parameters
         ----------
@@ -493,11 +493,12 @@ class GTSOM:
             Final (minimum) neighbourhood bandwidth.
         rho_tau : float, optional
             Exponential decay time constant in epochs. Mutually exclusive
-            with ``target_epochs``.
-        target_epochs : float, optional
-            Convenience alternative to ``rho_tau``. The number of epochs
-            over which rho decays from ``rho_0`` to ``rho_f``.
-            Mutually exclusive with ``rho_tau``.
+            with ``halflife_epochs``.
+        halflife_epochs : float, optional
+            Convenience alternative to ``rho_tau``. The epoch at which rho
+            reaches the geometric midpoint ``sqrt(rho_0 * rho_f)`` — i.e.
+            the half-life of the decay. The schedule clips at ``rho_f`` at
+            ``2 * halflife_epochs``. Mutually exclusive with ``rho_tau``.
         anneal : {'exponential'}, default 'exponential'
             Annealing schedule type. Currently only exponential decay
             is supported.
@@ -512,26 +513,26 @@ class GTSOM:
         Raises
         ------
         ValueError
-            If neither or both of ``rho_tau`` and ``target_epochs`` are
+            If neither or both of ``rho_tau`` and ``halflife_epochs`` are
             supplied, or if ``anneal`` is not recognised.
 
         Examples
         --------
-        >>> som.compile(rho_0=5.0, rho_f=0.3, target_epochs=50)
-        >>> som.compile(rho_0=5.0, rho_f=0.3, target_epochs=50, n_jobs=4)
+        >>> som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50)
+        >>> som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50, n_jobs=4)
         """
         if anneal not in ('exponential',):
             raise ValueError(
                 f"anneal must be 'exponential', got {anneal!r}. "
                 f"Additional schedules may be added in future."
             )
-        if rho_tau is None and target_epochs is None:
+        if rho_tau is None and halflife_epochs is None:
             raise ValueError(
-                "Exactly one of rho_tau or target_epochs must be supplied."
+                "Exactly one of rho_tau or halflife_epochs must be supplied."
             )
-        if rho_tau is not None and target_epochs is not None:
+        if rho_tau is not None and halflife_epochs is not None:
             raise ValueError(
-                "Supply either rho_tau or target_epochs, not both."
+                "Supply either rho_tau or halflife_epochs, not both."
             )
 
         if anneal == 'exponential':
@@ -540,8 +541,8 @@ class GTSOM:
                     initial=rho_0, final=rho_f, tau=rho_tau
                 )
             else:
-                self.rho_schedule = ExponentialAnneal.from_target(
-                    initial=rho_0, final=rho_f, target_epochs=target_epochs
+                self.rho_schedule = ExponentialAnneal.from_halflife(
+                    initial=rho_0, final=rho_f, halflife_epochs=halflife_epochs
                 )
 
         # Resolve and store thread count
@@ -605,7 +606,7 @@ class GTSOM:
         if self.rho_schedule is None:
             raise RuntimeError(
                 "compile() must be called before fit(). "
-                "Call som.compile(rho_0=..., rho_f=..., target_epochs=...) first."
+                "Call som.compile(rho_0=..., rho_f=..., halflife_epochs=...) first."
             )
 
         X = np.asarray(X)
@@ -1046,7 +1047,7 @@ class GTSOM:
         if self.rho_schedule is None:
             raise RuntimeError(
                 "compile() must be called before update_embedding(). "
-                "Call som.compile(rho_0=..., rho_f=..., target_epochs=...) "
+                "Call som.compile(rho_0=..., rho_f=..., halflife_epochs=...) "
                 "first so that a valid rho_schedule is available for "
                 "recomputing the neighbourhood weight matrix."
             )

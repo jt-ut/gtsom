@@ -133,7 +133,7 @@ print(f"  delBMU : {snap0['delBMU']:.4f}  (= 1.0 at init ✓)")
 # ------------------------------------------------------------------
 section("2. fit() — 100 epochs, plot_every=10")
 
-som.compile(rho_0=3.0, rho_f=1.0, target_epochs=50)
+som.compile(rho_0=3.0, rho_f=1.0, halflife_epochs=50)
 print(f"Schedule: {som.rho_schedule}")
 
 som.fit(X, n_epochs=100, labels=y, verbose=True, plot_every=10)
@@ -307,8 +307,8 @@ som_parallel = GTSOM.from_grid(
 assert np.array_equal(som_serial.W, som_parallel.W),     "Serial and parallel SOMs should start with identical W"
 print("  Starting W identical ✓")
 
-som_serial.compile(rho_0=3.0, rho_f=1.0, target_epochs=50, n_jobs=1)
-som_parallel.compile(rho_0=3.0, rho_f=1.0, target_epochs=50, n_jobs=-1)
+som_serial.compile(rho_0=3.0, rho_f=1.0, halflife_epochs=50, n_jobs=1)
+som_parallel.compile(rho_0=3.0, rho_f=1.0, halflife_epochs=50, n_jobs=-1)
 
 print(f"  Serial  : {som_serial}")
 print(f"  Parallel: {som_parallel}")

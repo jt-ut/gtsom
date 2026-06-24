@@ -185,8 +185,8 @@ class ExponentialAnneal:
         at this value for all ages beyond ``target_epochs``.
     tau : float
         Decay time constant in epochs. Smaller values decay faster.
-        Computed internally from ``target_epochs`` when that convenience
-        argument is used instead.
+        Computed internally from ``halflife_epochs`` when that convenience
+        constructor is used instead.
 
     Examples
     --------
@@ -200,11 +200,13 @@ class ExponentialAnneal:
     >>> schedule(1000)  # far beyond target — clipped at final
     0.3
 
-    Construction from a target epoch count:
+    Construction from a half-life epoch count:
 
-    >>> schedule = ExponentialAnneal.from_target(initial=5.0, final=0.3,
-    ...                                           target_epochs=50)
-    >>> round(schedule(50), 6)
+    >>> schedule = ExponentialAnneal.from_halflife(initial=5.0, final=0.3,
+    ...                                             halflife_epochs=50)
+    >>> round(schedule(50), 6)  # geometric midpoint of 5.0 and 0.3
+    1.2247...
+    >>> round(schedule(100), 6)  # clipped at final
     0.3
     """
 
@@ -230,18 +232,24 @@ class ExponentialAnneal:
         self.target_epochs = -self.tau * np.log(self.final / self.initial)
 
     @classmethod
-    def from_target(cls, initial, final, target_epochs):
+    def from_halflife(cls, initial, final, halflife_epochs):
         """
-        Construct a schedule where ``target_epochs`` is the half-life.
+        Construct a schedule where ``halflife_epochs`` is the half-life.
 
-        ``target_epochs`` is the number of epochs at which rho reaches
-        the geometric midpoint between ``initial`` and ``final`` on a
-        log scale. The schedule continues decaying beyond this point
-        and is clipped at ``final`` at ``2 * target_epochs``.
+        ``halflife_epochs`` is the number of epochs at which the parameter
+        reaches the geometric midpoint between ``initial`` and ``final`` on
+        a log scale — i.e. ``sqrt(initial * final)``. This is the true
+        half-life of the decay in log space.
 
-        This gives an intuitive interpretation: the parameter is still
-        actively decaying throughout the first ``target_epochs`` epochs,
-        and has fully settled by ``2 * target_epochs``.
+        The schedule continues decaying beyond this point and is clipped at
+        ``final`` at ``2 * halflife_epochs``, so the parameter has fully
+        settled by that point.
+
+        This gives an intuitive two-phase interpretation:
+          - Phase 1 (0 → halflife_epochs): active decay, halfway there in log space.
+          - Phase 2 (halflife_epochs → 2*halflife_epochs): second half of decay,
+            settling toward ``final``.
+          - Beyond 2*halflife_epochs: clipped at ``final``.
 
         Parameters
         ----------
@@ -249,10 +257,10 @@ class ExponentialAnneal:
             Starting value at age=0.
         final : float
             Floor value; clipped at this value from age ``2 *
-            target_epochs`` onward.
-        target_epochs : float
-            Half-life in epochs — the age at which the parameter reaches
-            the geometric midpoint ``sqrt(initial * final)``.
+            halflife_epochs`` onward.
+        halflife_epochs : float
+            The age at which the parameter reaches the geometric midpoint
+            ``sqrt(initial * final)``.
 
         Returns
         -------
@@ -260,8 +268,8 @@ class ExponentialAnneal:
 
         Examples
         --------
-        >>> s = ExponentialAnneal.from_target(initial=3.0, final=0.3,
-        ...                                    target_epochs=50)
+        >>> s = ExponentialAnneal.from_halflife(initial=3.0, final=0.3,
+        ...                                      halflife_epochs=50)
         >>> round(s(0), 4)
         3.0
         >>> round(s(50), 4)   # geometric midpoint of 3.0 and 0.3
@@ -269,16 +277,16 @@ class ExponentialAnneal:
         >>> round(s(100), 4)  # clipped at final
         0.3
         """
-        if target_epochs <= 0:
+        if halflife_epochs <= 0:
             raise ValueError(
-                f"target_epochs must be positive, got {target_epochs}"
+                f"halflife_epochs must be positive, got {halflife_epochs}"
             )
-        # tau such that age=target_epochs gives the geometric midpoint:
-        # initial * (final/initial)^(target_epochs/tau) = sqrt(initial*final)
-        # => (final/initial)^(target_epochs/tau) = sqrt(final/initial)
-        # => target_epochs/tau = 0.5
-        # => tau = 2 * target_epochs
-        tau = 2.0 * target_epochs
+        # tau such that age=halflife_epochs gives the geometric midpoint:
+        # initial * (final/initial)^(halflife_epochs/tau) = sqrt(initial*final)
+        # => (final/initial)^(halflife_epochs/tau) = sqrt(final/initial)
+        # => halflife_epochs/tau = 0.5
+        # => tau = 2 * halflife_epochs
+        tau = 2.0 * halflife_epochs
         return cls(initial=initial, final=final, tau=tau)
 
     def __call__(self, age):

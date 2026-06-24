@@ -126,7 +126,7 @@ section("4. Compile and fit (100 epochs)")
 som.compile(
     rho_0=10.0,
     rho_f=1.0,
-    target_epochs=100,
+    halflife_epochs=100,
     n_jobs=-1,
 )
 print(f"  Schedule: {som.rho_schedule}")

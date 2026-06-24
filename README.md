@@ -59,7 +59,7 @@ som = GTSOM.from_grid(
 som.compile(
     rho_0=3.0,       # initial neighbourhood bandwidth
     rho_f=1.0,       # final neighbourhood bandwidth
-    target_epochs=50,
+    halflife_epochs=50,
     n_jobs=-1,       # use all CPU cores (requires numba)
 )
 
