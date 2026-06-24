@@ -161,6 +161,13 @@ def reduce_coords_le(W, coord_dim, random_state=None):
     return coords.astype(np.float32)
 
 
+_ANNEAL_EPS = 1.0
+# Additive shift applied to initial and final before the exponential formula,
+# then subtracted from every output. This allows initial or final to be zero
+# without causing division-by-zero or log(0) in the formula. Since the shift
+# cancels exactly on output, its magnitude has no effect on the schedule shape.
+
+
 class ExponentialAnneal:
     """
     Exponential annealing schedule for a scalar parameter.
@@ -180,6 +187,11 @@ class ExponentialAnneal:
     is inferred automatically from the relationship between ``initial``
     and ``final``; the formula and clipping behaviour adapt accordingly.
 
+    ``initial`` and ``final`` may be zero. Internally, both are shifted by
+    a small positive constant before the exponential formula is applied, then
+    the shift is subtracted from every output — so the schedule endpoints and
+    shape are exactly as specified regardless of whether zero is used.
+
     Intended for use with any parameter that requires monotonic change
     during training — neighbourhood bandwidth (rho), topology-blending
     weight (nbr_topo_alpha), learning rate, etc.
@@ -187,9 +199,9 @@ class ExponentialAnneal:
     Parameters
     ----------
     initial : float
-        Starting value of the parameter (at age=0). Must be positive.
+        Starting value of the parameter (at age=0). Must be >= 0.
     final : float
-        Target value of the parameter. Must be positive. If ``final <
+        Target value of the parameter. Must be >= 0. If ``final <
         initial``, the schedule decays; if ``final > initial``, the
         schedule increases; if ``final == initial``, the schedule is
         flat and returns ``initial`` at every age.
@@ -211,13 +223,21 @@ class ExponentialAnneal:
     >>> schedule(1000)  # far beyond target — clipped at final
     0.3
 
+    Decreasing to zero:
+
+    >>> schedule = ExponentialAnneal(initial=1.0, final=0.0, tau=20)
+    >>> schedule(0)
+    1.0
+    >>> schedule(1000)  # clipped at final
+    0.0
+
     Increasing schedule (ramp):
 
-    >>> schedule = ExponentialAnneal(initial=0.2, final=0.9, tau=20)
+    >>> schedule = ExponentialAnneal(initial=0.0, final=1.0, tau=20)
     >>> schedule(0)
-    0.2
-    >>> schedule(1000)  # far beyond target — clipped at final
-    0.9
+    0.0
+    >>> schedule(1000)  # clipped at final
+    1.0
 
     Construction from a half-life epoch count:
 
@@ -230,10 +250,10 @@ class ExponentialAnneal:
     """
 
     def __init__(self, initial, final, tau):
-        if initial <= 0:
-            raise ValueError(f"initial must be positive, got {initial}")
-        if final <= 0:
-            raise ValueError(f"final must be positive, got {final}")
+        if initial < 0:
+            raise ValueError(f"initial must be >= 0, got {initial}")
+        if final < 0:
+            raise ValueError(f"final must be >= 0, got {final}")
         if tau <= 0:
             raise ValueError(f"tau must be positive, got {tau}")
 
@@ -241,19 +261,23 @@ class ExponentialAnneal:
         self.final = float(final)
         self.tau = float(tau)
 
+        # Shifted values used in all formula evaluations. The shift cancels
+        # exactly on output so has no effect on the schedule shape or endpoints.
+        self._si = self.initial + _ANNEAL_EPS
+        self._sf = self.final   + _ANNEAL_EPS
+
         # Detect flat schedule (initial == final); skip direction and
-        # target_epochs calculations that would involve log(1) = 0 or
-        # division by zero in tau-dependent expressions.
+        # target_epochs calculations that would involve log(1) = 0.
         self._flat = self.initial == self.final
         if self._flat:
-            self._increasing  = False   # unused, but defined for consistency
+            self._increasing   = False   # unused, but defined for consistency
             self.target_epochs = 0.0
         else:
             # Infer direction from initial and final values
             self._increasing = self.final > self.initial
             # Age at which the raw exponential first reaches final.
             # abs() ensures positive regardless of direction.
-            self.target_epochs = self.tau * abs(np.log(self.final / self.initial))
+            self.target_epochs = self.tau * abs(np.log(self._sf / self._si))
 
     @classmethod
     def from_halflife(cls, initial, final, halflife_epochs):
@@ -333,7 +357,7 @@ class ExponentialAnneal:
         """
         if self._flat:
             return self.final
-        raw = self.initial * (self.final / self.initial) ** (age / self.tau)
+        raw = self._si * (self._sf / self._si) ** (age / self.tau) - _ANNEAL_EPS
         if self._increasing:
             return float(min(raw, self.final))
         else:
@@ -357,7 +381,7 @@ class ExponentialAnneal:
         if self._flat:
             return np.full(n_epochs, self.final)
         ages = np.arange(n_epochs, dtype=float)
-        raw = self.initial * (self.final / self.initial) ** (ages / self.tau)
+        raw = self._si * (self._sf / self._si) ** (ages / self.tau) - _ANNEAL_EPS
         if self._increasing:
             return np.minimum(raw, self.final).astype(float)
         else:
