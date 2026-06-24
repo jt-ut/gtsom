@@ -47,8 +47,8 @@ class Embedding:
         Base constructor. Stores coords and metric specs, then calls
         compute_topo() to build adjacency and dist.
 
-        Prefer the classmethods (from_delaunay, from_grid) over calling
-        this directly.
+        Prefer the classmethods (from_delaunay, from_gabriel, from_grid)
+        over calling this directly.
 
         Parameters
         ----------
@@ -243,6 +243,31 @@ class Embedding:
         return cls(coords, adj_metric="delaunay", dist_metric=dist_metric)
 
     @classmethod
+    def from_gabriel(cls, coords, dist_metric="geodesic"):
+        """
+        Construct an Embedding from the Gabriel graph of coords.
+
+        The Gabriel graph is a subgraph of the Delaunay triangulation:
+        edge (i, j) is retained only if no other point lies within the
+        open ball whose diameter is the segment from coords[i] to coords[j].
+        This produces a sparser topology than Delaunay, more closely
+        reflecting local proximity structure, while remaining guaranteed
+        to be connected for any finite point set in general position.
+
+        Parameters
+        ----------
+        coords : array-like, shape (M, dim)
+            Low-dimensional prototype positions. dim must be 2 or 3.
+        dist_metric : str, default 'geodesic'
+            Distance type for computing dist.
+
+        Returns
+        -------
+        Embedding
+        """
+        return cls(coords, adj_metric="gabriel", dist_metric=dist_metric)
+
+    @classmethod
     def from_grid(cls, shape, kind="hex", dist_metric="geodesic"):
         """
         Construct an Embedding from a regular grid.
@@ -414,7 +439,7 @@ def _rect_grid_adjacency(shape):
     return csr_matrix((data, (rows, cols)), shape=(M, M))
 
 
-def _gabriel_adjacency(coords):
+def _gabriel_adjacency(coords, _chunk=2000):
     """
     Build a sparse symmetric adjacency matrix from the Gabriel graph
     of coords.
@@ -422,55 +447,83 @@ def _gabriel_adjacency(coords):
     The Gabriel graph is a subgraph of the Delaunay triangulation:
     edge (i, j) is retained only if no other point lies within the
     open ball whose diameter is the segment from coords[i] to coords[j].
+    Guaranteed to be connected for any finite point set in general position.
 
-    Uses Delaunay edges as candidates (Gabriel ⊆ Delaunay), then
-    filters via the Gabriel criterion using vectorized numpy operations.
+    Uses Delaunay edges as candidates (Gabriel ⊆ Delaunay), then filters
+    via the Gabriel criterion. Midpoints and radii for all candidate edges
+    are computed in a single vectorized pass; the point-to-midpoint distance
+    matrix is evaluated in chunks of ``_chunk`` edges to bound peak memory
+    regardless of M or E.
 
     Parameters
     ----------
     coords : np.ndarray, shape (M, dim)
+    _chunk : int, default 2000
+        Number of edges processed per chunk when computing point-to-midpoint
+        distances. Each chunk allocates an (M, _chunk) float64 working array
+        (~16MB at M=1000, ~80MB at M=5000). Reduce if memory is tight;
+        increase for fewer Python iterations on small M.
 
     Returns
     -------
     adjacency : scipy.sparse.csr_matrix, shape (M, M)
     """
+    from scipy.spatial.distance import cdist
+
+    M = coords.shape[0]
     delaunay_adj = _delaunay_adjacency(coords)
     delaunay_adj_coo = delaunay_adj.tocoo()
 
+    # Extract upper-triangle edges only — matrix is symmetric so each
+    # undirected edge appears twice; row < col gives one copy per edge.
     mask = delaunay_adj_coo.row < delaunay_adj_coo.col
-    rows = delaunay_adj_coo.row[mask]
-    cols = delaunay_adj_coo.col[mask]
+    rows = delaunay_adj_coo.row[mask]   # (E,) — edge endpoint indices
+    cols = delaunay_adj_coo.col[mask]   # (E,)
+    E = len(rows)
 
-    M = coords.shape[0]
-    keep_rows, keep_cols = [], []
+    # Pre-compute midpoints (E, dim) and diametric radii (E,) for all edges.
+    mids  = (coords[rows] + coords[cols]) / 2.0
+    radii = np.linalg.norm(coords[rows] - coords[cols], axis=1) / 2.0
 
-    for i, j in zip(rows, cols):
-        mid = (coords[i] + coords[j]) / 2.0
-        r = np.linalg.norm(coords[i] - coords[j]) / 2.0
+    # For each edge e, find the minimum distance from any point *other than
+    # the edge's own endpoints* to the midpoint of e. If that minimum is
+    # >= radii[e], the diametric ball is empty and the edge is a Gabriel edge.
+    #
+    # We process edges in chunks to keep the working (M, chunk) distance
+    # matrix bounded in memory. Within each chunk:
+    #   - compute cdist(coords, mids[chunk]) -> (M, chunk)
+    #   - set distances for the two endpoint rows to inf so they can't
+    #     trigger a false violation for their own edge
+    #   - take the column-wise minimum over all M points
+    min_dists = np.empty(E, dtype=np.float64)
+    edge_idx  = np.arange(_chunk)   # reused index array; trimmed at last chunk
 
-        other_mask = np.ones(M, dtype=bool)
-        other_mask[i] = False
-        other_mask[j] = False
+    for start in range(0, E, _chunk):
+        end  = min(start + _chunk, E)
+        size = end - start
+        idx  = edge_idx[:size]                          # (size,)
 
-        dists = np.linalg.norm(coords[other_mask] - mid, axis=1)
-        if not np.any(dists < r):
-            keep_rows.append(i)
-            keep_cols.append(j)
+        d = cdist(coords, mids[start:end])              # (M, size)
+        d[rows[start:end], idx] = np.inf                # mask edge endpoint i
+        d[cols[start:end], idx] = np.inf                # mask edge endpoint j
+
+        min_dists[start:end] = d.min(axis=0)            # (size,)
+
+    # Gabriel criterion: no other point strictly inside the diametric ball.
+    keep      = min_dists >= radii
+    keep_rows = rows[keep]
+    keep_cols = cols[keep]
 
     if len(keep_rows) == 0:
         return csr_matrix((M, M), dtype=np.uint8)
 
-    keep_rows = np.array(keep_rows)
-    keep_cols = np.array(keep_cols)
     data = np.ones(len(keep_rows), dtype=np.uint8)
-
-    adjacency = csr_matrix(
+    return csr_matrix(
         (np.concatenate([data, data]),
          (np.concatenate([keep_rows, keep_cols]),
           np.concatenate([keep_cols, keep_rows]))),
         shape=(M, M),
     )
-    return adjacency
 
 
 def _rect_grid_coords(shape):

@@ -18,6 +18,11 @@ som = GTSOM.from_data(X, M=100, coord_dim=2, coord_init='pca', W_init='kmeans')
 som.compile(rho_0=5.0, rho_f=0.5, rho_tau=20)
 som.fit(X, n_epochs=20)
 
+# Hybrid lattice + CONN-based neighbourhood update
+som = GTSOM.from_data(X, M=100, coord_dim=2, coord_init='pca', W_init='kmeans')
+som.compile(rho_0=5.0, rho_f=0.5, rho_tau=20, nbr_topo_alpha=0.6)
+som.fit(X, n_epochs=20)
+
 Notes
 -----
 GTSOM does not perform any internal scaling of X. It is the caller's
@@ -28,6 +33,7 @@ BMU search will reflect the scale of the input features.
 
 import time
 import numpy as np
+from scipy.sparse.csgraph import shortest_path
 
 from .embedding import Embedding
 from .kernel import NeighborKernel
@@ -186,8 +192,9 @@ class GTSOM:
         self._validator = None
 
         # Annealing schedule and parallelism — set by compile()
-        self.rho_schedule = None
-        self.n_jobs       = None   # resolved thread count; None = all cores
+        self.rho_schedule   = None
+        self.n_jobs         = None   # resolved thread count; None = all cores
+        self.nbr_topo_alpha = 1.0    # default: pure lattice SOM; set by compile()
 
         # Fit state — populated during fit()
         self.nbr_W = None
@@ -351,6 +358,7 @@ class GTSOM:
         coord_dim=2,
         coord_init='pca',
         W_init='kmeans',
+        coord_topo='delaunay',
         h_min=0.01,
         random_state=None,
         labels=None,
@@ -359,8 +367,9 @@ class GTSOM:
         Initialise a GTSOM with a data-driven output topology.
 
         Prototype vectors are found via vector quantisation of X, projected
-        to ``coord_dim`` dimensions to define neuron positions, and a Delaunay
-        triangulation of those positions defines the output topology.
+        to ``coord_dim`` dimensions to define neuron positions, and either
+        a Delaunay triangulation or Gabriel graph of those positions defines
+        the output topology.
 
         Parameters
         ----------
@@ -380,6 +389,18 @@ class GTSOM:
             ``'le'``
                 Laplacian Eigenmaps via sklearn SpectralEmbedding
                 (nonlinear, slower).
+        coord_topo : {'delaunay', 'gabriel'}, default 'delaunay'
+            Graph used to define the output-space topology from the
+            projected prototype coordinates.
+
+            ``'delaunay'``
+                Delaunay triangulation. Denser connectivity; every
+                prototype is guaranteed at least a few neighbours.
+            ``'gabriel'``
+                Gabriel graph (a subgraph of Delaunay). Sparser
+                connectivity that more closely reflects local proximity
+                structure. Guaranteed to be connected for any finite
+                point set in general position.
         W_init : {'kmeans', 'random'}, default 'kmeans'
             How to find initial prototype vectors.
 
@@ -406,8 +427,8 @@ class GTSOM:
         Raises
         ------
         ValueError
-            If ``coord_dim`` is not 2 or 3, ``coord_init`` or ``W_init``
-            are not recognised, or M is out of range.
+            If ``coord_dim`` is not 2 or 3, ``coord_init``, ``W_init``,
+            or ``coord_topo`` are not recognised, or M is out of range.
         ImportError
             If ``W_init='kmeans'`` and vqlp is not installed.
         """
@@ -421,6 +442,11 @@ class GTSOM:
             raise ValueError(
                 f"coord_init must be 'pca' or 'le' for from_data, "
                 f"got {coord_init!r}"
+            )
+        if coord_topo not in ('delaunay', 'gabriel'):
+            raise ValueError(
+                f"coord_topo must be 'delaunay' or 'gabriel', "
+                f"got {coord_topo!r}"
             )
         if W_init not in ('kmeans', 'random'):
             raise ValueError(
@@ -448,8 +474,11 @@ class GTSOM:
         else:  # 'le'
             coords = reduce_coords_le(W, coord_dim, random_state)
 
-        # Step 3: build embedding via Delaunay triangulation of those coords
-        embed = Embedding.from_delaunay(coords)
+        # Step 3: build embedding from projected coords using chosen topology
+        if coord_topo == 'delaunay':
+            embed = Embedding.from_delaunay(coords)
+        else:  # 'gabriel'
+            embed = Embedding.from_gabriel(coords)
 
         # Step 4: build recaller and kernel
         recaller = VQRecaller(p=2, max_bmu=2, verbose=False)
@@ -469,14 +498,15 @@ class GTSOM:
     # ------------------------------------------------------------------
 
     def compile(self, rho_0, rho_f, rho_tau=None, halflife_epochs=None,
-                anneal='exponential', n_jobs=None):
+                anneal='exponential', n_jobs=None, nbr_topo_alpha=1.0):
         """
-        Set the neighbourhood bandwidth annealing schedule.
+        Set the neighbourhood bandwidth annealing schedule and update rule.
 
         Must be called at least once before :meth:`fit`. Can be called
-        again at any time to change the schedule — for example, to slow
-        the decay rate for a refinement phase — without affecting
-        ``self.age``, ``self.W``, or ``self.learn_history_``.
+        again at any time to change the schedule or ``nbr_topo_alpha`` —
+        for example, to slow the decay rate for a refinement phase, or to
+        switch from a pure lattice update to a hybrid update — without
+        affecting ``self.age``, ``self.W``, or ``self.learn_history_``.
 
         To start learning from scratch, construct a new instance via
         :meth:`from_grid` or :meth:`from_data` rather than calling
@@ -509,17 +539,59 @@ class GTSOM:
             numba is installed (useful for debugging or benchmarking).
             Values > 1 are silently clamped to ``os.cpu_count()``.
             Ignored with a warning if numba is not installed.
+        nbr_topo_alpha : float, default 1.0
+            Blending weight controlling the neighbourhood update rule.
+            Must be in [0, 1].
+
+            The neighbourhood influence matrix is computed as::
+
+                nbr_W = nbr_topo_alpha       * H_lat
+                      + (1 - nbr_topo_alpha) * H_CONN
+
+            where ``H_lat`` is the standard lattice-geodesic neighbourhood
+            (as in classical SOM) and ``H_CONN`` is a neighbourhood derived
+            from geodesic hop-count distances on the CONN prototype
+            adjacency graph (computed by :class:`VQRecaller`).
+
+            ``H_CONN[i, j] = exp(-D_CONN[i, j] / rho)``, where
+            ``D_CONN[i, j]`` is the shortest hop-count path between
+            prototypes i and j on the binary CONN graph. Pairs that are
+            disconnected in CONN have ``D_CONN[i, j] = inf``, so their
+            ``H_CONN`` contribution is exactly zero — they receive only
+            the dampened lattice signal ``nbr_topo_alpha * H_lat[i, j]``.
+
+            ``nbr_topo_alpha = 1.0`` (default)
+                Pure lattice SOM update. CONN is not consulted and
+                ``H_CONN`` is never computed, so there is no overhead
+                compared to the standard update rule.
+            ``nbr_topo_alpha = 0.0``
+                Pure CONN-based update. Prototype pairs that are
+                disconnected in CONN receive zero neighbourhood influence,
+                regardless of their lattice distance.
+            Intermediate values blend both signals: lattice neighbours
+            that are manifold-distant (low or zero CONN weight) will have
+            their mutual influence dampened relative to the standard SOM
+            rule, providing an "insurance policy" against pulling together
+            prototypes that tile unrelated regions of the data manifold.
+
+            Note: ``H_lat`` and ``H_CONN`` use the same bandwidth ``rho``
+            and the same exponential decay kernel, so their values are
+            directly comparable on a [0, 1] scale and the linear blend is
+            well-posed.
 
         Raises
         ------
         ValueError
             If neither or both of ``rho_tau`` and ``halflife_epochs`` are
-            supplied, or if ``anneal`` is not recognised.
+            supplied, if ``anneal`` is not recognised, or if
+            ``nbr_topo_alpha`` is not in [0, 1].
 
         Examples
         --------
         >>> som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50)
         >>> som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50, n_jobs=4)
+        >>> som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50,
+        ...             nbr_topo_alpha=0.6)
         """
         if anneal not in ('exponential',):
             raise ValueError(
@@ -533,6 +605,10 @@ class GTSOM:
         if rho_tau is not None and halflife_epochs is not None:
             raise ValueError(
                 "Supply either rho_tau or halflife_epochs, not both."
+            )
+        if not (0.0 <= nbr_topo_alpha <= 1.0):
+            raise ValueError(
+                f"nbr_topo_alpha must be in [0, 1], got {nbr_topo_alpha}."
             )
 
         if anneal == 'exponential':
@@ -554,6 +630,7 @@ class GTSOM:
                 UserWarning, stacklevel=2,
             )
         self.n_jobs = resolve_n_jobs(n_jobs)
+        self.nbr_topo_alpha = float(nbr_topo_alpha)
 
     # ------------------------------------------------------------------
     # Training
@@ -997,15 +1074,47 @@ class GTSOM:
         """
         Compute neighbourhood activation weights for the current epoch.
 
-        Calls ``kernel.compute(embed.dist, rho)`` and stores the result
-        in ``self.nbr_W`` as a sparse CSR matrix of shape (M, M).
+        When ``self.nbr_topo_alpha == 1.0`` (default), this reduces to
+        the standard SOM rule: neighbourhood weights are derived solely
+        from geodesic hop-count distances on the lattice embedding::
+
+            nbr_W = H_lat   where   H_lat[i, j] = exp(-D_lat[i, j] / rho)
+
+        When ``self.nbr_topo_alpha < 1.0``, a hybrid update rule is used
+        that blends lattice-based and CONN-based neighbourhood influences::
+
+            nbr_W = nbr_topo_alpha       * H_lat
+                  + (1 - nbr_topo_alpha) * H_CONN
+
+        ``H_CONN[i, j] = exp(-D_CONN[i, j] / rho)``, where ``D_CONN`` is
+        the matrix of shortest hop-count paths on the binary CONN graph
+        (computed from ``self.recaller.CONN`` with edge weights ignored).
+        Prototype pairs that are disconnected in CONN have
+        ``D_CONN[i, j] = inf``, so ``H_CONN[i, j] = 0`` for those pairs
+        — they receive only the dampened lattice signal
+        ``nbr_topo_alpha * H_lat[i, j]``.
+
+        Both ``H_lat`` and ``H_CONN`` use the same bandwidth ``rho`` and
+        the same exponential decay kernel, so their values lie in [0, 1]
+        and the linear blend is well-posed.
+
+        The result is stored in ``self.nbr_W`` as a sparse CSR matrix of
+        shape (M, M) and consumed by :meth:`_update_prototypes`.
 
         Parameters
         ----------
         rho : float or np.ndarray, shape (M,)
             Neighbourhood bandwidth; scalar or per-prototype array.
         """
-        self.nbr_W = self.kernel.compute(self.embed.dist, rho)
+        H_lat = self.kernel.compute(self.embed.dist, rho)
+        if self.nbr_topo_alpha < 1.0 and self.recaller.CONN is not None:
+            D_CONN = shortest_path(
+                self.recaller.CONN, method="D", directed=False, unweighted=True
+            ).astype(np.float32)
+            H_CONN = self.kernel.compute(D_CONN, rho)
+            self.nbr_W = self.nbr_topo_alpha * H_lat + (1 - self.nbr_topo_alpha) * H_CONN
+        else:
+            self.nbr_W = H_lat
 
     def update_embedding(self, coords):
         """
@@ -1104,5 +1213,6 @@ class GTSOM:
             f"compiled={compiled}, fitted={fitted}, "
             f"age={self.age}, snapshots={n_snaps}, "
             f"backend={backend!r}, n_jobs={self.n_jobs}, "
+            f"nbr_topo_alpha={self.nbr_topo_alpha}, "
             f"train_time={self.train_time:.3f}s)"
         )
