@@ -10,17 +10,18 @@ Typical usage
 -------------
 # Grid-based (classical SOM style)
 som = GTSOM.from_grid(X, shape=(10, 10), coord_init='hex', W_init='random')
-som.compile(rho_0=5.0, rho_f=0.5, rho_tau=20)
+som.compile(rho_0=5.0, rho_f=0.5, tau=20)
 som.fit(X, n_epochs=20)
 
 # Data-driven (general topology)
 som = GTSOM.from_data(X, M=100, coord_dim=2, coord_init='pca', W_init='kmeans')
-som.compile(rho_0=5.0, rho_f=0.5, rho_tau=20)
+som.compile(rho_0=5.0, rho_f=0.5, tau=20)
 som.fit(X, n_epochs=20)
 
 # Hybrid lattice + CONN-based neighbourhood update
 som = GTSOM.from_data(X, M=100, coord_dim=2, coord_init='pca', W_init='kmeans')
-som.compile(rho_0=5.0, rho_f=0.5, rho_tau=20, nbr_topo_alpha=0.6)
+som.compile(rho_0=5.0, rho_f=0.5, tau=20,
+            nbr_topo_alpha_0=1.0, nbr_topo_alpha_f=0.3)
 som.fit(X, n_epochs=20)
 
 Notes
@@ -193,8 +194,8 @@ class GTSOM:
 
         # Annealing schedule and parallelism — set by compile()
         self.rho_schedule   = None
+        self.alpha_schedule = None   # topology-blending annealing; set by compile()
         self.n_jobs         = None   # resolved thread count; None = all cores
-        self.nbr_topo_alpha = 1.0    # default: pure lattice SOM; set by compile()
 
         # Fit state — populated during fit()
         self.nbr_W = None
@@ -497,22 +498,24 @@ class GTSOM:
     # Training configuration
     # ------------------------------------------------------------------
 
-    def compile(self, rho_0, rho_f, rho_tau=None, halflife_epochs=None,
-                anneal='exponential', n_jobs=None, nbr_topo_alpha=1.0):
+    def compile(self, rho_0, rho_f, tau=None, halflife_epochs=None,
+                anneal='exponential', n_jobs=None,
+                nbr_topo_alpha_0=1.0, nbr_topo_alpha_f=None):
         """
-        Set the neighbourhood bandwidth annealing schedule and update rule.
+        Set the neighbourhood bandwidth and topology-blending annealing schedules.
 
         Must be called at least once before :meth:`fit`. Can be called
-        again at any time to change the schedule or ``nbr_topo_alpha`` —
-        for example, to slow the decay rate for a refinement phase, or to
-        switch from a pure lattice update to a hybrid update — without
+        again at any time to change the schedule or blending parameters —
+        for example, to slow the decay rate for a refinement phase — without
         affecting ``self.age``, ``self.W``, or ``self.learn_history_``.
 
         To start learning from scratch, construct a new instance via
         :meth:`from_grid` or :meth:`from_data` rather than calling
         ``compile()`` again.
 
-        Exactly one of ``rho_tau`` or ``halflife_epochs`` must be supplied.
+        Exactly one of ``tau`` or ``halflife_epochs`` must be supplied.
+        The resolved time constant is shared across all annealed parameters
+        (``rho`` and ``nbr_topo_alpha``).
 
         Parameters
         ----------
@@ -521,14 +524,15 @@ class GTSOM:
             ``self.age`` on the first subsequent :meth:`fit` epoch.
         rho_f : float
             Final (minimum) neighbourhood bandwidth.
-        rho_tau : float, optional
-            Exponential decay time constant in epochs. Mutually exclusive
-            with ``halflife_epochs``.
+        tau : float, optional
+            Exponential decay time constant in epochs, shared across all
+            annealed parameters. Mutually exclusive with ``halflife_epochs``.
         halflife_epochs : float, optional
-            Convenience alternative to ``rho_tau``. The epoch at which rho
-            reaches the geometric midpoint ``sqrt(rho_0 * rho_f)`` — i.e.
-            the half-life of the decay. The schedule clips at ``rho_f`` at
-            ``2 * halflife_epochs``. Mutually exclusive with ``rho_tau``.
+            Convenience alternative to ``tau``. The epoch at which each
+            annealed parameter reaches the geometric midpoint between its
+            initial and final values — i.e. the half-life of the decay.
+            The schedule clips at the final value at ``2 * halflife_epochs``.
+            Mutually exclusive with ``tau``.
         anneal : {'exponential'}, default 'exponential'
             Annealing schedule type. Currently only exponential decay
             is supported.
@@ -539,86 +543,81 @@ class GTSOM:
             numba is installed (useful for debugging or benchmarking).
             Values > 1 are silently clamped to ``os.cpu_count()``.
             Ignored with a warning if numba is not installed.
-        nbr_topo_alpha : float, default 1.0
-            Blending weight controlling the neighbourhood update rule.
-            Must be in [0, 1].
+        nbr_topo_alpha_0 : float, default 1.0
+            Initial value of the topology-blending parameter. Must be
+            in [0, 1]. See :meth:`_compute_neighborhood` for a full
+            description of the blending rule.
+        nbr_topo_alpha_f : float, optional
+            Final (minimum) value of the topology-blending parameter.
+            Must be in [0, 1] and <= ``nbr_topo_alpha_0``. If not
+            supplied, defaults to ``nbr_topo_alpha_0``, producing a
+            flat (non-annealing) schedule — equivalent to the fixed
+            ``nbr_topo_alpha`` behaviour of earlier versions.
 
-            The neighbourhood influence matrix is computed as::
-
-                nbr_W = nbr_topo_alpha       * H_lat
-                      + (1 - nbr_topo_alpha) * H_CONN
-
-            where ``H_lat`` is the standard lattice-geodesic neighbourhood
-            (as in classical SOM) and ``H_CONN`` is a neighbourhood derived
-            from geodesic hop-count distances on the CONN prototype
-            adjacency graph (computed by :class:`VQRecaller`).
-
-            ``H_CONN[i, j] = exp(-D_CONN[i, j] / rho)``, where
-            ``D_CONN[i, j]`` is the shortest hop-count path between
-            prototypes i and j on the binary CONN graph. Pairs that are
-            disconnected in CONN have ``D_CONN[i, j] = inf``, so their
-            ``H_CONN`` contribution is exactly zero — they receive only
-            the dampened lattice signal ``nbr_topo_alpha * H_lat[i, j]``.
-
-            ``nbr_topo_alpha = 1.0`` (default)
-                Pure lattice SOM update. CONN is not consulted and
-                ``H_CONN`` is never computed, so there is no overhead
-                compared to the standard update rule.
-            ``nbr_topo_alpha = 0.0``
-                Pure CONN-based update. Prototype pairs that are
-                disconnected in CONN receive zero neighbourhood influence,
-                regardless of their lattice distance.
-            Intermediate values blend both signals: lattice neighbours
-            that are manifold-distant (low or zero CONN weight) will have
-            their mutual influence dampened relative to the standard SOM
-            rule, providing an "insurance policy" against pulling together
-            prototypes that tile unrelated regions of the data manifold.
-
-            Note: ``H_lat`` and ``H_CONN`` use the same bandwidth ``rho``
-            and the same exponential decay kernel, so their values are
-            directly comparable on a [0, 1] scale and the linear blend is
-            well-posed.
+            Annealing ``nbr_topo_alpha`` downward over training reflects
+            the intuition that CONN becomes a more reliable guide to
+            manifold structure as prototypes settle, so its influence on
+            the neighbourhood update should increase over time.
 
         Raises
         ------
         ValueError
-            If neither or both of ``rho_tau`` and ``halflife_epochs`` are
-            supplied, if ``anneal`` is not recognised, or if
-            ``nbr_topo_alpha`` is not in [0, 1].
+            If neither or both of ``tau`` and ``halflife_epochs`` are
+            supplied, if ``anneal`` is not recognised, or if either
+            ``nbr_topo_alpha_0`` or ``nbr_topo_alpha_f`` is not in [0, 1].
 
         Examples
         --------
         >>> som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50)
         >>> som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50, n_jobs=4)
+        >>> # Fixed blending weight (no annealing):
         >>> som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50,
-        ...             nbr_topo_alpha=0.6)
+        ...             nbr_topo_alpha_0=0.6)
+        >>> # Annealing from pure lattice toward CONN-dominated:
+        >>> som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50,
+        ...             nbr_topo_alpha_0=1.0, nbr_topo_alpha_f=0.3)
         """
         if anneal not in ('exponential',):
             raise ValueError(
                 f"anneal must be 'exponential', got {anneal!r}. "
                 f"Additional schedules may be added in future."
             )
-        if rho_tau is None and halflife_epochs is None:
+        if tau is None and halflife_epochs is None:
             raise ValueError(
-                "Exactly one of rho_tau or halflife_epochs must be supplied."
+                "Exactly one of tau or halflife_epochs must be supplied."
             )
-        if rho_tau is not None and halflife_epochs is not None:
+        if tau is not None and halflife_epochs is not None:
             raise ValueError(
-                "Supply either rho_tau or halflife_epochs, not both."
+                "Supply either tau or halflife_epochs, not both."
             )
-        if not (0.0 <= nbr_topo_alpha <= 1.0):
+
+        # Resolve alpha_f: default to alpha_0 for a flat (non-annealing) schedule
+        alpha_f = nbr_topo_alpha_f if nbr_topo_alpha_f is not None else nbr_topo_alpha_0
+
+        if not (0.0 <= nbr_topo_alpha_0 <= 1.0):
             raise ValueError(
-                f"nbr_topo_alpha must be in [0, 1], got {nbr_topo_alpha}."
+                f"nbr_topo_alpha_0 must be in [0, 1], got {nbr_topo_alpha_0}."
+            )
+        if not (0.0 <= alpha_f <= 1.0):
+            raise ValueError(
+                f"nbr_topo_alpha_f must be in [0, 1], got {alpha_f}."
             )
 
         if anneal == 'exponential':
-            if rho_tau is not None:
+            if tau is not None:
                 self.rho_schedule = ExponentialAnneal(
-                    initial=rho_0, final=rho_f, tau=rho_tau
+                    initial=rho_0, final=rho_f, tau=tau
+                )
+                self.alpha_schedule = ExponentialAnneal(
+                    initial=nbr_topo_alpha_0, final=alpha_f, tau=tau
                 )
             else:
                 self.rho_schedule = ExponentialAnneal.from_halflife(
                     initial=rho_0, final=rho_f, halflife_epochs=halflife_epochs
+                )
+                self.alpha_schedule = ExponentialAnneal.from_halflife(
+                    initial=nbr_topo_alpha_0, final=alpha_f,
+                    halflife_epochs=halflife_epochs
                 )
 
         # Resolve and store thread count
@@ -630,7 +629,6 @@ class GTSOM:
                 UserWarning, stacklevel=2,
             )
         self.n_jobs = resolve_n_jobs(n_jobs)
-        self.nbr_topo_alpha = float(nbr_topo_alpha)
 
     # ------------------------------------------------------------------
     # Training
@@ -706,8 +704,9 @@ class GTSOM:
 
         _t0 = time.perf_counter()
         for local_epoch in range(n_epochs):
-            rho = self.rho_schedule(self.age)
-            self._compute_neighborhood(rho)
+            rho   = self.rho_schedule(self.age)
+            alpha = self.alpha_schedule(self.age)
+            self._compute_neighborhood(rho, alpha)
             self._update_prototypes(X)
             self._recall(X, labels=labels)
             self.age += 1
@@ -1070,21 +1069,20 @@ class GTSOM:
         if include_fig:
             self.learn_history_[-1]['fig'] = self.plot()
 
-    def _compute_neighborhood(self, rho):
+    def _compute_neighborhood(self, rho, alpha):
         """
         Compute neighbourhood activation weights for the current epoch.
 
-        When ``self.nbr_topo_alpha == 1.0`` (default), this reduces to
-        the standard SOM rule: neighbourhood weights are derived solely
-        from geodesic hop-count distances on the lattice embedding::
+        When ``alpha == 1.0``, this reduces to the standard SOM rule:
+        neighbourhood weights are derived solely from geodesic hop-count
+        distances on the lattice embedding::
 
             nbr_W = H_lat   where   H_lat[i, j] = exp(-D_lat[i, j] / rho)
 
-        When ``self.nbr_topo_alpha < 1.0``, a hybrid update rule is used
-        that blends lattice-based and CONN-based neighbourhood influences::
+        When ``alpha < 1.0``, a hybrid update rule is used that blends
+        lattice-based and CONN-based neighbourhood influences::
 
-            nbr_W = nbr_topo_alpha       * H_lat
-                  + (1 - nbr_topo_alpha) * H_CONN
+            nbr_W = alpha * H_lat + (1 - alpha) * H_CONN
 
         ``H_CONN[i, j] = exp(-D_CONN[i, j] / rho)``, where ``D_CONN`` is
         the matrix of shortest hop-count paths on the binary CONN graph
@@ -1092,7 +1090,7 @@ class GTSOM:
         Prototype pairs that are disconnected in CONN have
         ``D_CONN[i, j] = inf``, so ``H_CONN[i, j] = 0`` for those pairs
         — they receive only the dampened lattice signal
-        ``nbr_topo_alpha * H_lat[i, j]``.
+        ``alpha * H_lat[i, j]``.
 
         Both ``H_lat`` and ``H_CONN`` use the same bandwidth ``rho`` and
         the same exponential decay kernel, so their values lie in [0, 1]
@@ -1105,14 +1103,18 @@ class GTSOM:
         ----------
         rho : float or np.ndarray, shape (M,)
             Neighbourhood bandwidth; scalar or per-prototype array.
+        alpha : float
+            Current topology-blending weight, evaluated from
+            ``self.alpha_schedule`` at the current epoch. When 1.0,
+            only ``H_lat`` is computed (no CONN overhead).
         """
         H_lat = self.kernel.compute(self.embed.dist, rho)
-        if self.nbr_topo_alpha < 1.0 and self.recaller.CONN is not None:
+        if alpha < 1.0 and self.recaller.CONN is not None:
             D_CONN = shortest_path(
                 self.recaller.CONN, method="D", directed=False, unweighted=True
             ).astype(np.float32)
             H_CONN = self.kernel.compute(D_CONN, rho)
-            self.nbr_W = self.nbr_topo_alpha * H_lat + (1 - self.nbr_topo_alpha) * H_CONN
+            self.nbr_W = alpha * H_lat + (1 - alpha) * H_CONN
         else:
             self.nbr_W = H_lat
 
@@ -1161,7 +1163,10 @@ class GTSOM:
                 "recomputing the neighbourhood weight matrix."
             )
         self.embed.update_coords(coords)
-        self._compute_neighborhood(self.rho_schedule(self.age))
+        self._compute_neighborhood(
+            self.rho_schedule(self.age),
+            self.alpha_schedule(self.age),
+        )
         return self
 
     def _update_prototypes(self, X):
@@ -1213,6 +1218,6 @@ class GTSOM:
             f"compiled={compiled}, fitted={fitted}, "
             f"age={self.age}, snapshots={n_snaps}, "
             f"backend={backend!r}, n_jobs={self.n_jobs}, "
-            f"nbr_topo_alpha={self.nbr_topo_alpha}, "
+            f"alpha_schedule={self.alpha_schedule}, "
             f"train_time={self.train_time:.3f}s)"
         )
