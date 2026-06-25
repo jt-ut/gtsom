@@ -128,6 +128,8 @@ som.compile(
     rho_f=1.0,
     halflife_epochs=100,
     n_jobs=-1,
+    nbr_topo_alpha_0=0.1, 
+    nbr_topo_alpha_f=0.9
 )
 print(f"  Schedule: {som.rho_schedule}")
 print(f"  rho at epoch  0: {som.rho_schedule(0):.4f}")

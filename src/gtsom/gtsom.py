@@ -784,9 +784,10 @@ class GTSOM:
 
     def plot(
         self,
-        color_by='mqe',
+        color_by='auto',
         cmap_continuous='viridis',
         cmap_categorical='tab10',
+        rf_size_log_threshold=10,
         ax=None,
         title='SOM Learning',
         subtitle=None,
@@ -797,19 +798,26 @@ class GTSOM:
         Plot the SOM in output (lattice) space.
 
         Neurons are drawn at their ``embed.coords`` positions, connected
-        by edges from ``embed.adjacency``, and coloured according to
-        ``color_by``. Nothing is displayed automatically — the returned
-        Figure must be explicitly shown (``plt.show()``) or saved
+        by edges from ``embed.adjacency``. Each neuron is coloured
+        according to ``color_by`` and sized proportionally to its
+        receptive field size (RFSize), with the size scale adapted to
+        both the number of prototypes and the distribution of RFSize
+        values. Nothing is displayed automatically — the returned Figure
+        must be explicitly shown (``plt.show()``) or saved
         (``fig.savefig()``).
 
         Parameters
         ----------
-        color_by : {'mqe', 'rfsize', 'labels'}, default 'mqe'
+        color_by : {'auto', 'mqe', 'rfsize', 'labels'}, default 'auto'
             Quantity used to colour neurons.
 
+            ``'auto'``
+                Use ``'labels'`` if ``recaller.WL`` is available,
+                otherwise fall back to ``'mqe'``.
             ``'mqe'``
-                Per-prototype mean quantization error from ``learn_history_``.
-                Always available after any recall. Continuous colormap.
+                Per-prototype mean quantization error from
+                ``learn_history_``. Always available after any recall.
+                Continuous colormap.
             ``'rfsize'``
                 Receptive field size (``recaller.RFSize``). Always
                 available after any recall. Continuous colormap.
@@ -823,6 +831,12 @@ class GTSOM:
             'rfsize').
         cmap_categorical : str or Colormap, default 'tab10'
             Matplotlib colormap for categorical quantities ('labels').
+        rf_size_log_threshold : float, default 10
+            Controls whether RFSize is mapped to point size on a linear
+            or log scale. If ``max(RFSize) / median(RFSize)`` exceeds
+            this threshold, log scaling is used to prevent outlier
+            prototypes from dominating the size range. Set to ``inf``
+            to always use linear scaling.
         ax : matplotlib.axes.Axes or None, default None
             Axes to draw into. If None, a new Figure and Axes are
             created internally.
@@ -857,9 +871,13 @@ class GTSOM:
                 f"embed.dim={self.embed.dim}."
             )
 
+        # Resolve 'auto' color_by
+        if color_by == 'auto':
+            color_by = 'labels' if self.recaller.WL is not None else 'mqe'
+
         if color_by not in ('mqe', 'rfsize', 'labels'):
             raise ValueError(
-                f"color_by must be 'mqe', 'rfsize', or 'labels', "
+                f"color_by must be 'auto', 'mqe', 'rfsize', or 'labels', "
                 f"got {color_by!r}."
             )
 
@@ -869,6 +887,18 @@ class GTSOM:
                 "at construction or during fit(). "
                 "recaller.WL is currently None."
             )
+
+        # ------------------------------------------------------------------
+        # Compute point sizes from RFSize, scaled to M and distribution shape
+        # ------------------------------------------------------------------
+        rf = self.recaller.RFSize.astype(float)
+        use_log = (rf.max() / (np.median(rf) + 1e-8)) > rf_size_log_threshold
+        rf_scaled = np.log1p(rf) if use_log else rf
+        rf_range  = rf_scaled.max() - rf_scaled.min()
+        rf_norm   = (rf_scaled - rf_scaled.min()) / (rf_range + 1e-8)  # [0, 1]
+        s_min = max(10,  2000 / self.M)
+        s_max = max(50,  8000 / self.M)
+        point_sizes = s_min + rf_norm * (s_max - s_min)
 
         # ------------------------------------------------------------------
         # Resolve axes / figure
@@ -892,14 +922,14 @@ class GTSOM:
                 )
 
         # ------------------------------------------------------------------
-        # Colour neurons
+        # Colour neurons (size always mapped to RFSize)
         # ------------------------------------------------------------------
         if color_by in ('mqe', 'rfsize'):
             if color_by == 'mqe':
                 values = self.learn_history_[-1]['W_mqe']   # (M,), nan for empty RFs
                 cb_label = 'MQE'
             else:
-                values = self.recaller.RFSize.astype(float)
+                values = rf
                 cb_label = 'RF Size'
 
             cmap = plt.get_cmap(cmap_continuous)
@@ -908,20 +938,21 @@ class GTSOM:
             vmax = float(np.nanmax(values)) if finite.any() else 1.0
             norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
 
-            # Finite-valued neurons: coloured by cmap
+            # Finite-valued neurons: coloured by cmap, sized by RFSize
             sc = ax.scatter(
                 coords[finite, 0], coords[finite, 1],
                 c=values[finite], cmap=cmap, norm=norm,
-                s=60, zorder=2, edgecolors='black', linewidths=0.4,
+                s=point_sizes[finite], zorder=2,
+                edgecolors='black', linewidths=0.4,
             )
             fig.colorbar(sc, ax=ax, label=cb_label, shrink=0.85)
 
-            # Empty-RF neurons (nan): grey
+            # Empty-RF neurons (nan): grey, minimum size
             empty = ~finite
             if empty.any():
                 ax.scatter(
                     coords[empty, 0], coords[empty, 1],
-                    c='lightgrey', s=60, zorder=2,
+                    c='lightgrey', s=s_min, zorder=2,
                     edgecolors='black', linewidths=0.4,
                 )
 
@@ -938,7 +969,7 @@ class GTSOM:
             ]
             ax.scatter(
                 coords[:, 0], coords[:, 1],
-                c=node_colors, s=60, zorder=2,
+                c=node_colors, s=point_sizes, zorder=2,
                 edgecolors='black', linewidths=0.4,
             )
 
@@ -1067,7 +1098,7 @@ class GTSOM:
 
         # Step 4: optionally capture plot (reads learn_history_[-1])
         if include_fig:
-            self.learn_history_[-1]['fig'] = self.plot()
+            self.learn_history_[-1]['fig'] = self.plot(color_by='auto')
 
     def _compute_neighborhood(self, rho, alpha):
         """
