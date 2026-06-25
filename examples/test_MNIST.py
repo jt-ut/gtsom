@@ -30,8 +30,15 @@ N_PCS    = 50
 SHAPE    = (20, 20)
 
 def savefig(fig, name):
+    """Save a matplotlib Figure to OUTDIR."""
     path = os.path.join(OUTDIR, name)
     fig.savefig(path, dpi=150, bbox_inches='tight')
+    print(f"  Saved: {path}")
+
+def savegg(g, name, width=7, height=6):
+    """Save a plotnine ggplot object to OUTDIR."""
+    path = os.path.join(OUTDIR, name)
+    g.save(path, dpi=150, width=width, height=height)
     print(f"  Saved: {path}")
 
 def section(title):
@@ -116,7 +123,7 @@ fig_init = som.plot(
     title='GTSOM — MNIST',
     subtitle='Initial state (age=0)',
 )
-savefig(fig_init, 'mnist_som_init.png')
+savegg(fig_init, 'mnist_som_init.png')
 
 # ------------------------------------------------------------------
 # 4. Compile and fit
@@ -187,12 +194,12 @@ for color_by, fname in [
     ('rfsize',  'mnist_som_rfsize.png'),
 ]:
     print(f"  color_by='{color_by}'")
-    fig = som.plot(
+    g = som.plot(
         color_by=color_by,
         title='GTSOM — MNIST (20×20 hex)',
         subtitle=f'age={som.age}, color_by={color_by!r}',
     )
-    savefig(fig, fname)
+    savegg(g, fname)
 
 # ------------------------------------------------------------------
 # 7. Prototype images — back-project W to pixel space

@@ -113,7 +113,7 @@ def parse_ctab(labels, colors):
     # Strip None/NaN from labels before any processing so that callers
     # don't have to pre-filter. None keys in the dict would cause silent
     # mismatches downstream.
-    labels = [l for l in labels if not _is_missing(l)]
+    labels = [str(l) for l in labels if not _is_missing(l)]
     n = len(labels)
     if n == 0:
         raise ValueError("labels contains only None/NaN values.")
@@ -185,7 +185,7 @@ def build_ctab(labels, seed=None):
         pip install distinctipy
     """
     # Strip None/NaN before sorting — sorted() can't compare None to str
-    sorted_labels = sorted(set(l for l in labels if not _is_missing(l)))
+    sorted_labels = sorted(set(str(l) for l in labels if not _is_missing(l)))
     n = len(sorted_labels)
     if n == 0:
         raise ValueError("labels contains only None/NaN values.")
@@ -384,11 +384,20 @@ def vis_embedding_discrete(
         # Labels given but no color table: auto-generate one (ignoring None)
         ctab = build_ctab(z, seed=seed)
     elif z is not None and ctab is not None:
-        # Both given: validate that all non-None labels are covered
-        z = np.asarray(z, dtype=object)
-        missing = set(z[~pd.isnull(z)]) - set(ctab.keys())
+        # Both given: normalize ctab keys to str, coerce z to str, then
+        # validate. This guarantees factor levels and dict keys are the same
+        # type, preventing plotnine from falling back to using labels as color
+        # specs (e.g. '6' being parsed as matplotlib grayscale).
+        ctab = {str(k): v for k, v in ctab.items()}
+        z = np.array([str(v) if not _is_missing(v) else v
+                      for v in np.asarray(z, dtype=object)])
+        missing = set(v for v in z if not _is_missing(v)) - set(ctab.keys())
         if missing:
             raise ValueError(f"z contains labels not found in ctab: {missing}")
+
+    # Normalize ctab keys to str in all branches (build_ctab already does
+    # this internally, but a user-supplied ctab may have integer keys).
+    ctab = {str(k): v for k, v in ctab.items()}
 
     z = np.asarray(z, dtype=object)
 
@@ -396,10 +405,17 @@ def vis_embedding_discrete(
     # Points with no label are excluded from both the point layer and any
     # graph edges, matching R/ggplot2 behavior of silently dropping NA rows.
     valid = np.array([not _is_missing(v) for v in z])
-    x_plot     = x[valid]
-    y_plot     = y[valid]
-    z_plot     = z[valid]
-    valid_idx  = np.where(valid)[0]
+    x_plot    = x[valid]
+    y_plot    = y[valid]
+    z_plot    = np.array([str(v) for v in z[valid]])
+    valid_idx = np.where(valid)[0]
+
+    # Sanity check: Categorical categories and ctab keys must be identical
+    # sets so plotnine's factor->color lookup never fails silently.
+    assert set(z_plot).issubset(set(ctab.keys())), (
+        "Internal error: z_plot contains labels not in ctab after coercion. "
+        "Please file a bug report."
+    )
 
     # ---- build plot -------------------------------------------------------
     g = ggplot()
@@ -438,10 +454,14 @@ def vis_embedding_discrete(
         mapping=aes(x="x", y="y", color="z", size="size"),
         shape=point_shape,
     )
+    # Pass values as a list (not dict) in the same order as breaks.
+    # plotnine's dict lookup fails when factor levels are numpy.str_ and
+    # dict keys are plain str, even though they print identically.
+    _breaks = list(ctab.keys())
     g = g + scale_color_manual(
         name=legend_title,
-        values=ctab,
-        breaks=list(ctab.keys()),
+        values=[ctab[k] for k in _breaks],
+        breaks=_breaks,
     )
     g = _apply_size_scale(g, point_size, point_size_wts_trans)
 

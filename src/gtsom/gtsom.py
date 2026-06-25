@@ -229,7 +229,7 @@ class GTSOM:
         #   'W_mqe'  : ndarray (M,) — per-prototype MQE, nan for empty RFs
         #   'delBMU' : float    — proportion of data whose BMU changed since
         #                         the previous epoch; 1.0 at age=0 by definition
-        #   'fig'    : Figure or None — plot captured this epoch (or None)
+        #   'fig'    : ggplot or None — plot captured this epoch (or None)
         self.learn_history_ = []
 
     # ------------------------------------------------------------------
@@ -821,26 +821,30 @@ class GTSOM:
     def plot(
         self,
         color_by='auto',
-        cmap_continuous='viridis',
-        cmap_categorical='tab10',
+        cmap='viridis',
         rf_size_log_threshold=10,
-        ax=None,
-        title='SOM Learning',
+        legend_pos='right',
+        title='SOUMAP',
         subtitle=None,
-        xlabel=r'SOM$_1$',
-        ylabel=r'SOM$_2$',
+        xlab=r'SOM$_1$',
+        ylab=r'SOM$_2$',
     ):
         """
-        Plot the SOM in output (lattice) space.
+        Plot the SOM in output (lattice) space using plotnine.
 
-        Neurons are drawn at their ``embed.coords`` positions, connected
-        by edges from ``embed.adjacency``. Each neuron is coloured
-        according to ``color_by`` and sized proportionally to its
-        receptive field size (RFSize), with the size scale adapted to
-        both the number of prototypes and the distribution of RFSize
-        values. Nothing is displayed automatically — the returned Figure
-        must be explicitly shown (``plt.show()``) or saved
-        (``fig.savefig()``).
+        Delegates to :func:`~gtsom.vis_tools.vis_embedding_discrete` when
+        labels are available, and to
+        :func:`~gtsom.vis_tools.vis_embedding_continuous` otherwise (coloring
+        by MQE). Neurons are drawn at their ``embed.coords`` positions,
+        connected by edges from ``embed.adjacency``. Point size is mapped to
+        receptive field size (RFSize), with the size transform (linear or
+        log10) chosen automatically based on the distribution of RFSize values.
+        If DR metrics have been computed for the current snapshot, they are
+        formatted and shown as a plot caption.
+
+        Returns a ``plotnine.ggplot`` object — nothing is displayed
+        automatically. Call ``.save(path)`` to write to disk, or evaluate
+        the object in a notebook to display it inline.
 
         Parameters
         ----------
@@ -851,44 +855,37 @@ class GTSOM:
                 Use ``'labels'`` if ``recaller.WL`` is available,
                 otherwise fall back to ``'mqe'``.
             ``'mqe'``
-                Per-prototype mean quantization error from
-                ``learn_history_``. Always available after any recall.
-                Continuous colormap.
+                Per-prototype mean quantization error. Continuous scale.
             ``'rfsize'``
-                Receptive field size (``recaller.RFSize``). Always
-                available after any recall. Continuous colormap.
+                Receptive field size. Continuous scale.
             ``'labels'``
-                Winning label per prototype (``recaller.WL``). Requires
-                that labels were passed to the constructor or to
-                ``fit()``. Categorical colormap. Raises ``ValueError``
-                if ``recaller.WL`` is None.
-        cmap_continuous : str or Colormap, default 'viridis'
-            Matplotlib colormap for continuous quantities ('mqe',
-            'rfsize').
-        cmap_categorical : str or Colormap, default 'tab10'
-            Matplotlib colormap for categorical quantities ('labels').
+                Winning label per prototype. Discrete scale. Raises
+                ``ValueError`` if ``recaller.WL`` is None.
+        cmap : str, default 'viridis'
+            Colormap name for continuous quantities ('mqe', 'rfsize').
+            Any matplotlib-compatible string is accepted (e.g. 'plasma',
+            'magma'). Ignored for label plots.
         rf_size_log_threshold : float, default 10
             Controls whether RFSize is mapped to point size on a linear
-            or log scale. If ``max(RFSize) / median(RFSize)`` exceeds
-            this threshold, log scaling is used to prevent outlier
-            prototypes from dominating the size range. Set to ``inf``
-            to always use linear scaling.
-        ax : matplotlib.axes.Axes or None, default None
-            Axes to draw into. If None, a new Figure and Axes are
-            created internally.
-        title : str or None, default 'SOM Learning'
-            Main title line. Pass None to suppress.
+            or log10 scale. If ``max(RFSize) / median(RFSize)`` exceeds
+            this threshold, ``point_size_wts_trans='log10'`` is passed to
+            the vis_tools function; otherwise ``'identity'`` is used. Set
+            to ``inf`` to always use linear scaling.
+        legend_pos : str, default 'right'
+            Legend / colorbar position. One of ``'right'``, ``'bottom'``,
+            or ``'none'``.
+        title : str or None, default 'SOUMAP'
+            Main title line.
         subtitle : str or None, default None
-            Second title line. If None, auto-generates
-            ``f'Epoch = {self.age}'``.
-        xlabel : str, default 'SOM_1'
+            Subtitle line. If None, auto-generates ``'Epoch {self.age}'``.
+        xlab : str, default 'SOM$_1$'
             Label for the horizontal axis.
-        ylabel : str, default 'SOM_2'
+        ylab : str, default 'SOM$_2$'
             Label for the vertical axis.
 
         Returns
         -------
-        fig : matplotlib.figure.Figure
+        plotnine.ggplot
 
         Raises
         ------
@@ -897,9 +894,7 @@ class GTSOM:
         ValueError
             If ``color_by='labels'`` but no labels have been provided.
         """
-        import matplotlib.pyplot as plt
-        import matplotlib.colors as mcolors
-        from matplotlib.patches import Patch
+        from .vis_tools import vis_embedding_discrete, vis_embedding_continuous
 
         if self.embed.dim != 2:
             raise NotImplementedError(
@@ -916,129 +911,97 @@ class GTSOM:
                 f"color_by must be 'auto', 'mqe', 'rfsize', or 'labels', "
                 f"got {color_by!r}."
             )
-
         if color_by == 'labels' and self.recaller.WL is None:
             raise ValueError(
                 "color_by='labels' requires labels to have been provided "
-                "at construction or during fit(). "
-                "recaller.WL is currently None."
+                "at construction or during fit(). recaller.WL is currently None."
             )
 
         # ------------------------------------------------------------------
-        # Compute point sizes from RFSize, scaled to M and distribution shape
+        # RFSize → point_size_wts and transform
         # ------------------------------------------------------------------
-        rf = self.recaller.RFSize.astype(float)
-        use_log = (rf.max() / (np.median(rf) + 1e-8)) > rf_size_log_threshold
-        rf_scaled = np.log1p(rf) if use_log else rf
-        rf_range  = rf_scaled.max() - rf_scaled.min()
-        rf_norm   = (rf_scaled - rf_scaled.min()) / (rf_range + 1e-8)  # [0, 1]
-        s_min = max(10,  2000 / self.M)
-        s_max = max(50,  8000 / self.M)
-        point_sizes = s_min + rf_norm * (s_max - s_min)
+        rf       = self.recaller.RFSize.astype(float)
+        use_log  = (rf.max() / (np.median(rf) + 1e-8)) > rf_size_log_threshold
+        rf_trans = 'log10' if use_log else 'identity'
+        # Normalise raw RFSize to [0, 1] so point_size_wts is always in range
+        rf_norm  = (rf - rf.min()) / (rf.max() - rf.min() + 1e-8)
 
         # ------------------------------------------------------------------
-        # Resolve axes / figure
+        # Point size: scale down with M so points don't overlap at large M
         # ------------------------------------------------------------------
-        if ax is None:
-            fig, ax = plt.subplots(figsize=(7, 6))
+        point_size = max(2.0, 20.0 / np.sqrt(self.M))
+
+        # ------------------------------------------------------------------
+        # Subtitle and caption
+        # ------------------------------------------------------------------
+        sub     = subtitle if subtitle is not None else f'Epoch {self.age}'
+        caption = None
+        snap    = self.learn_history_[-1] if self.learn_history_ else None
+        if snap is not None and snap.get('dr_metrics') is not None:
+            dm = snap['dr_metrics']
+            lines = []
+            qnn_parts = []
+            for name in ('Q_local', 'Q_global', 'Q_AUC', 'LCMC_AUC', 'Trust_AUC'):
+                val = getattr(dm, name)
+                if val is not None:
+                    qnn_parts.append(f'{name}={val:.3f}')
+            if qnn_parts:
+                lines.append('  '.join(qnn_parts))
+            wafl = getattr(dm, 'CONN_WAFL', None)
+            se   = getattr(dm, 'CONN_WAFL_SE', None)
+            if wafl is not None:
+                wafl_str = f'CONN_WAFL={wafl:.3f}'
+                if se is not None:
+                    wafl_str += f' \u00b1 {se:.3f}'
+                lines.append(wafl_str)
+            if lines:
+                caption = '\n'.join(lines)
+
+        # ------------------------------------------------------------------
+        # Shared kwargs for both vis functions
+        # ------------------------------------------------------------------
+        shared = dict(
+            x                    = self.embed.coords[:, 0],
+            y                    = self.embed.coords[:, 1],
+            point_size           = point_size,
+            point_size_wts       = rf_norm,
+            point_size_wts_trans = rf_trans,
+            graph                = self.embed.adjacency,
+            edge_size            = 0.3,
+            edge_color           = '#BBBBBB',
+            xlab                 = xlab,
+            ylab                 = ylab,
+            title                = title,
+            subtitle             = sub,
+            caption              = caption,
+            legend_pos           = legend_pos,
+        )
+
+        # ------------------------------------------------------------------
+        # Dispatch to discrete or continuous
+        # ------------------------------------------------------------------
+        if color_by == 'labels':
+            # vis_embedding_discrete coerces all labels to str internally,
+            # so WL can be passed as-is regardless of label type. None
+            # entries are silently dropped by the function.
+            return vis_embedding_discrete(
+                z             = self.recaller.WL,
+                legend_title  = 'Label',
+                **shared,
+            )
         else:
-            fig = ax.figure
-
-        # ------------------------------------------------------------------
-        # Draw adjacency edges (upper triangle only — matrix is symmetric)
-        # ------------------------------------------------------------------
-        cx = self.embed.adjacency.tocoo()
-        coords = self.embed.coords
-        for i, j in zip(cx.row, cx.col):
-            if i < j:
-                ax.plot(
-                    [coords[i, 0], coords[j, 0]],
-                    [coords[i, 1], coords[j, 1]],
-                    color='dimgrey', lw=0.8, alpha=0.5, zorder=1,
-                )
-
-        # ------------------------------------------------------------------
-        # Colour neurons (size always mapped to RFSize)
-        # ------------------------------------------------------------------
-        if color_by in ('mqe', 'rfsize'):
-            if color_by == 'mqe':
-                values = self.learn_history_[-1]['W_mqe']   # (M,), nan for empty RFs
-                cb_label = 'MQE'
-            else:
-                values = rf
-                cb_label = 'RF Size'
-
-            cmap = plt.get_cmap(cmap_continuous)
-            finite = np.isfinite(values)
-            vmin = float(np.nanmin(values)) if finite.any() else 0.0
-            vmax = float(np.nanmax(values)) if finite.any() else 1.0
-            norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
-
-            # Finite-valued neurons: coloured by cmap, sized by RFSize
-            sc = ax.scatter(
-                coords[finite, 0], coords[finite, 1],
-                c=values[finite], cmap=cmap, norm=norm,
-                s=point_sizes[finite], zorder=2,
-                edgecolors='black', linewidths=0.4,
+            z = (
+                self.learn_history_[-1]['W_mqe']
+                if color_by == 'mqe'
+                else rf
             )
-            fig.colorbar(sc, ax=ax, label=cb_label, shrink=0.85)
-
-            # Empty-RF neurons (nan): grey, minimum size
-            empty = ~finite
-            if empty.any():
-                ax.scatter(
-                    coords[empty, 0], coords[empty, 1],
-                    c='lightgrey', s=s_min, zorder=2,
-                    edgecolors='black', linewidths=0.4,
-                )
-
-        else:  # color_by == 'labels'
-            WL = self.recaller.WL          # object array (M,), None for empty
-            unq_labels = self.recaller.WL_unq
-            n_labels = len(unq_labels)
-            cmap = plt.get_cmap(cmap_categorical, n_labels)
-            label_to_color = {lbl: cmap(i) for i, lbl in enumerate(unq_labels)}
-
-            node_colors = [
-                label_to_color[lbl] if lbl is not None else 'lightgrey'
-                for lbl in WL
-            ]
-            ax.scatter(
-                coords[:, 0], coords[:, 1],
-                c=node_colors, s=point_sizes, zorder=2,
-                edgecolors='black', linewidths=0.4,
+            legend_title = 'MQE' if color_by == 'mqe' else 'RF Size'
+            return vis_embedding_continuous(
+                z             = z,
+                cmap          = cmap,
+                legend_title  = legend_title,
+                **shared,
             )
-
-            # Legend
-            legend_elements = [
-                Patch(facecolor=label_to_color[lbl], edgecolor='black',
-                      label=str(lbl))
-                for lbl in unq_labels
-            ]
-            has_empty = any(lbl is None for lbl in WL)
-            if has_empty:
-                legend_elements.append(
-                    Patch(facecolor='lightgrey', edgecolor='black',
-                          label='Empty RF')
-                )
-            ax.legend(handles=legend_elements, loc='best', fontsize=8,
-                      title='Label')
-
-        # ------------------------------------------------------------------
-        # Titles and axis labels
-        # ------------------------------------------------------------------
-        sub = subtitle if subtitle is not None else f'Epoch = {self.age}'
-        if title is not None:
-            ax.set_title(f'{title}\n{sub}', fontsize=10)
-        else:
-            ax.set_title(sub, fontsize=10)
-
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
-        ax.set_aspect('equal', adjustable='datalim')
-
-        plt.tight_layout()
-        return fig
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -1119,7 +1082,7 @@ class GTSOM:
                                                epoch; 1.0 at age=0
             'dr_metrics' : DRMetricsResult   — DR quality metrics, or None
                                                if compute_dr_metrics=False
-            'fig'        : Figure or None    — plot captured this epoch
+            'fig'        : ggplot or None    — plot captured this epoch
         """
         # Step 1: compute delBMU before prevBMU is overwritten
         current_bmu = self.recaller.BMU[:, 0]
