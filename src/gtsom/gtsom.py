@@ -193,9 +193,10 @@ class GTSOM:
         self._validator = None
 
         # Annealing schedule and parallelism — set by compile()
-        self.rho_schedule   = None
-        self.alpha_schedule = None   # topology-blending annealing; set by compile()
-        self.n_jobs         = None   # resolved thread count; None = all cores
+        self.rho_schedule        = None
+        self.alpha_schedule      = None   # topology-blending annealing; set by compile()
+        self.n_jobs              = None   # resolved thread count; None = all cores
+        self.compute_dr_metrics  = False  # DR quality metrics; set by compile()
 
         # Fit state — populated during fit()
         self.nbr_W = None
@@ -500,7 +501,8 @@ class GTSOM:
 
     def compile(self, rho_0, rho_f, tau=None, halflife_epochs=None,
                 anneal='exponential', n_jobs=None,
-                nbr_topo_alpha_0=1.0, nbr_topo_alpha_f=None):
+                nbr_topo_alpha_0=1.0, nbr_topo_alpha_f=None,
+                compute_dr_metrics=False):
         """
         Set the neighbourhood bandwidth and topology-blending annealing schedules.
 
@@ -558,6 +560,27 @@ class GTSOM:
             decays (less CONN influence over time). If
             ``nbr_topo_alpha_f > nbr_topo_alpha_0``, the schedule
             increases (more CONN influence over time).
+        compute_dr_metrics : bool, default False
+            Whether to compute dimensionality reduction quality metrics at
+            each snapshot during :meth:`fit`. When True, each entry in
+            ``learn_history_`` will contain a ``'dr_metrics'`` key holding
+            a :class:`~gtsom.dr_metrics.DRMetricsResult` with the following
+            fields:
+
+            - ``Q_local``, ``Q_global``, ``Q_AUC``, ``LCMC_AUC``,
+              ``Trust_AUC`` — co-ranking family metrics (require
+              ``pyDRMetrics``; see note below).
+            - ``CONN_WAFL``, ``CONN_WAFL_SE`` — embedding folding metric
+              over the CONN graph (always computed; requires only numpy/scipy).
+
+            When False (default), ``'dr_metrics'`` is None in every snapshot
+            and ``pyDRMetrics`` is never imported.
+
+            .. note::
+                ``pyDRMetrics`` is not on PyPI and must be installed manually.
+                If it is not installed, co-ranking metrics will be None but
+                CONN_WAFL will still be computed. See
+                https://github.com/zhangys11/pyDRMetrics for installation.
 
         Raises
         ------
@@ -576,6 +599,9 @@ class GTSOM:
         >>> # Annealing from pure lattice toward CONN-dominated:
         >>> som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50,
         ...             nbr_topo_alpha_0=1.0, nbr_topo_alpha_f=0.3)
+        >>> # Enable DR metrics tracking:
+        >>> som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50,
+        ...             compute_dr_metrics=True)
         """
         if anneal not in ('exponential',):
             raise ValueError(
@@ -629,6 +655,16 @@ class GTSOM:
                 UserWarning, stacklevel=2,
             )
         self.n_jobs = resolve_n_jobs(n_jobs)
+        self.compute_dr_metrics = bool(compute_dr_metrics)
+
+        # Backfill DR metrics into the age-0 snapshot if it exists and was
+        # taken before compile() was called (i.e. at construction time).
+        # This ensures learn_history_[0] has a complete baseline entry,
+        # including DR metrics, so training progress can be tracked from
+        # the very start.
+        if self.compute_dr_metrics and self.learn_history_:
+            if self.learn_history_[0]['dr_metrics'] is None:
+                self.learn_history_[0]['dr_metrics'] = self._snapshot_dr_metrics()
 
     # ------------------------------------------------------------------
     # Training
@@ -1059,7 +1095,8 @@ class GTSOM:
         2. Append the snapshot dict — including ``delBMU`` and ``W_mqe`` —
            so that :meth:`plot` can read from ``learn_history_[-1]``.
         3. Overwrite ``self.prevBMU`` with the current BMU assignments.
-        4. Optionally call :meth:`plot` and store the Figure.
+        4. Optionally compute DR metrics and store in the snapshot.
+        5. Optionally call :meth:`plot` and store the Figure.
 
         Returns nothing; callers must not wrap this call in ``append()``.
 
@@ -1073,12 +1110,16 @@ class GTSOM:
             'fig' key. If False, 'fig' is None.
 
         Each snapshot dict contains:
-            'age'    : int      — self.age at snapshot time
-            'mqe'    : float    — global MQE over all data
-            'W_mqe'  : ndarray (M,) — per-prototype MQE, nan for empty RFs
-            'delBMU' : float    — proportion of data whose BMU changed since
-                                   the previous epoch; 1.0 at age=0
-            'fig'    : Figure or None
+            'age'        : int               — self.age at snapshot time
+            'mqe'        : float             — global MQE over all data
+            'W_mqe'      : ndarray (M,)      — per-prototype MQE, nan for
+                                               empty RFs
+            'delBMU'     : float             — proportion of data whose BMU
+                                               changed since the previous
+                                               epoch; 1.0 at age=0
+            'dr_metrics' : DRMetricsResult   — DR quality metrics, or None
+                                               if compute_dr_metrics=False
+            'fig'        : Figure or None    — plot captured this epoch
         """
         # Step 1: compute delBMU before prevBMU is overwritten
         current_bmu = self.recaller.BMU[:, 0]
@@ -1086,19 +1127,62 @@ class GTSOM:
 
         # Step 2: append snapshot (plot() can now read W_mqe and delBMU)
         self.learn_history_.append({
-            'age'    : self.age,
-            'mqe'    : float(np.sqrt(self.recaller.QE[:, 0].mean())),
-            'W_mqe'  : self._compute_W_mqe(),
-            'delBMU' : delBMU,
-            'fig'    : None,
+            'age'        : self.age,
+            'mqe'        : float(np.sqrt(self.recaller.QE[:, 0].mean())),
+            'W_mqe'      : self._compute_W_mqe(),
+            'delBMU'     : delBMU,
+            'dr_metrics' : None,
+            'fig'        : None,
         })
 
         # Step 3: overwrite prevBMU for the next epoch's delBMU computation
         self.prevBMU = current_bmu.copy()
 
-        # Step 4: optionally capture plot (reads learn_history_[-1])
+        # Step 4: optionally compute DR metrics
+        if self.compute_dr_metrics:
+            self.learn_history_[-1]['dr_metrics'] = self._snapshot_dr_metrics()
+
+        # Step 5: optionally capture plot (reads learn_history_[-1])
         if include_fig:
             self.learn_history_[-1]['fig'] = self.plot(color_by='auto')
+
+    def _snapshot_dr_metrics(self):
+        """
+        Compute DR quality metrics for the current prototype / embedding state.
+
+        Calls :func:`~gtsom.dr_metrics.compute_dr_metrics` with the current
+        prototype matrix (``self.W``), embedding coordinates
+        (``self.embed.coords``), geodesic distance matrix
+        (``self.embed.dist``), and CONN matrix (``self.recaller.CONN``).
+
+        The ``pyDRMetrics`` import is deferred to here so that a missing
+        installation does not affect normal GTSOM usage. If ``pyDRMetrics``
+        is not installed, co-ranking metrics (Q_local, Q_global, Q_AUC,
+        LCMC_AUC, Trust_AUC) will be None; CONN_WAFL and CONN_WAFL_SE are
+        always computed since they require only numpy/scipy.
+
+        Returns
+        -------
+        DRMetricsResult
+        """
+        from .dr_metrics import compute_dr_metrics as _compute_dr_metrics
+        try:
+            return _compute_dr_metrics(
+                X                   = self.W,
+                Y                   = self.embed.coords,
+                embed_geodesic_dist = self.embed.dist,
+                CONN                = self.recaller.CONN,
+                compute_coranking   = True,
+            )
+        except ImportError:
+            # pyDRMetrics not installed — fall back to CONN_WAFL only
+            return _compute_dr_metrics(
+                X                   = self.W,
+                Y                   = self.embed.coords,
+                embed_geodesic_dist = self.embed.dist,
+                CONN                = self.recaller.CONN,
+                compute_coranking   = False,
+            )
 
     def _compute_neighborhood(self, rho, alpha):
         """
@@ -1250,5 +1334,6 @@ class GTSOM:
             f"age={self.age}, snapshots={n_snaps}, "
             f"backend={backend!r}, n_jobs={self.n_jobs}, "
             f"alpha_schedule={self.alpha_schedule}, "
+            f"compute_dr_metrics={self.compute_dr_metrics}, "
             f"train_time={self.train_time:.3f}s)"
         )

@@ -16,3 +16,7 @@
 ## NeighborKernel
 
 ::: gtsom.kernel.NeighborKernel
+
+## DRMetrics 
+
+::: gtsom.dr_metrics.compute_dr_metrics
