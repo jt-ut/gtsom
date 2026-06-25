@@ -766,6 +766,28 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#drmetrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DRMetrics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gtsom.dr_metrics.compute_dr_metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_dr_metrics
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1193,6 +1215,28 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#drmetrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DRMetrics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gtsom.dr_metrics.compute_dr_metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_dr_metrics
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1421,7 +1465,8 @@ BMU search will reflect the scale of the input features.</p>
 <span class="normal">229</span>
 <span class="normal">230</span>
 <span class="normal">231</span>
-<span class="normal">232</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">W</span><span class="p">,</span> <span class="n">embed</span><span class="p">,</span> <span class="n">recaller</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="normal">232</span>
+<span class="normal">233</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">W</span><span class="p">,</span> <span class="n">embed</span><span class="p">,</span> <span class="n">recaller</span><span class="p">,</span> <span class="n">kernel</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="n">W</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">W</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">W</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;W must be 2-D, got shape </span><span class="si">{</span><span class="n">W</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -1444,9 +1489,10 @@ BMU search will reflect the scale of the input features.</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">_validator</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="c1"># Annealing schedule and parallelism — set by compile()</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">rho_schedule</span>   <span class="o">=</span> <span class="kc">None</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">alpha_schedule</span> <span class="o">=</span> <span class="kc">None</span>   <span class="c1"># topology-blending annealing; set by compile()</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">n_jobs</span>         <span class="o">=</span> <span class="kc">None</span>   <span class="c1"># resolved thread count; None = all cores</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">rho_schedule</span>        <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">alpha_schedule</span>      <span class="o">=</span> <span class="kc">None</span>   <span class="c1"># topology-blending annealing; set by compile()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">n_jobs</span>              <span class="o">=</span> <span class="kc">None</span>   <span class="c1"># resolved thread count; None = all cores</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">compute_dr_metrics</span>  <span class="o">=</span> <span class="kc">False</span>  <span class="c1"># DR quality metrics; set by compile()</span>
 
     <span class="c1"># Fit state — populated during fit()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">nbr_W</span> <span class="o">=</span> <span class="kc">None</span>
@@ -1767,8 +1813,7 @@ than data points.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">252</span>
-<span class="normal">253</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">253</span>
 <span class="normal">254</span>
 <span class="normal">255</span>
 <span class="normal">256</span>
@@ -1867,7 +1912,8 @@ than data points.</p>
 <span class="normal">349</span>
 <span class="normal">350</span>
 <span class="normal">351</span>
-<span class="normal">352</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">352</span>
+<span class="normal">353</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_grid</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
     <span class="n">X</span><span class="p">,</span>
@@ -2256,8 +2302,7 @@ or <code>coord_topo</code> are not recognised, or M is out of range.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">354</span>
-<span class="normal">355</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">355</span>
 <span class="normal">356</span>
 <span class="normal">357</span>
 <span class="normal">358</span>
@@ -2397,7 +2442,8 @@ or <code>coord_topo</code> are not recognised, or M is out of range.</p>
 <span class="normal">492</span>
 <span class="normal">493</span>
 <span class="normal">494</span>
-<span class="normal">495</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">495</span>
+<span class="normal">496</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_data</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
     <span class="n">X</span><span class="p">,</span>
@@ -2562,6 +2608,7 @@ or <code>coord_topo</code> are not recognised, or M is out of range.</p>
     <span class="n">n_jobs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">nbr_topo_alpha_0</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
     <span class="n">nbr_topo_alpha_f</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">compute_dr_metrics</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
 
@@ -2741,6 +2788,40 @@ increases (more CONN influence over time).</p>
                   <code>None</code>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>compute_dr_metrics</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether to compute dimensionality reduction quality metrics at
+each snapshot during :meth:<code>fit</code>. When True, each entry in
+<code>learn_history_</code> will contain a <code>'dr_metrics'</code> key holding
+a :class:<code>~gtsom.dr_metrics.DRMetricsResult</code> with the following
+fields:</p>
+<ul>
+<li><code>Q_local</code>, <code>Q_global</code>, <code>Q_AUC</code>, <code>LCMC_AUC</code>,
+  <code>Trust_AUC</code> — co-ranking family metrics (require
+  <code>pyDRMetrics</code>; see note below).</li>
+<li><code>CONN_WAFL</code>, <code>CONN_WAFL_SE</code> — embedding folding metric
+  over the CONN graph (always computed; requires only numpy/scipy).</li>
+</ul>
+<p>When False (default), <code>'dr_metrics'</code> is None in every snapshot
+and <code>pyDRMetrics</code> is never imported.</p>
+<p>.. note::
+    <code>pyDRMetrics</code> is not on PyPI and must be installed manually.
+    If it is not installed, co-ranking metrics will be None but
+    CONN_WAFL will still be computed. See
+    https://github.com/zhangys11/pyDRMetrics for installation.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
       </tbody>
     </table>
 
@@ -2779,13 +2860,15 @@ supplied, if <code>anneal</code> is not recognised, or if either
 <span class="gp">&gt;&gt;&gt; </span><span class="c1"># Annealing from pure lattice toward CONN-dominated:</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">som</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">rho_0</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">rho_f</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">halflife_epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
 <span class="gp">... </span>            <span class="n">nbr_topo_alpha_0</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">nbr_topo_alpha_f</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Enable DR metrics tracking:</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">som</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">rho_0</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">rho_f</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">halflife_epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+<span class="gp">... </span>            <span class="n">compute_dr_metrics</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </code></pre></div>
 
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">501</span>
-<span class="normal">502</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">502</span>
 <span class="normal">503</span>
 <span class="normal">504</span>
 <span class="normal">505</span>
@@ -2914,9 +2997,46 @@ supplied, if <code>anneal</code> is not recognised, or if either
 <span class="normal">628</span>
 <span class="normal">629</span>
 <span class="normal">630</span>
-<span class="normal">631</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">compile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rho_0</span><span class="p">,</span> <span class="n">rho_f</span><span class="p">,</span> <span class="n">tau</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">halflife_epochs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="normal">631</span>
+<span class="normal">632</span>
+<span class="normal">633</span>
+<span class="normal">634</span>
+<span class="normal">635</span>
+<span class="normal">636</span>
+<span class="normal">637</span>
+<span class="normal">638</span>
+<span class="normal">639</span>
+<span class="normal">640</span>
+<span class="normal">641</span>
+<span class="normal">642</span>
+<span class="normal">643</span>
+<span class="normal">644</span>
+<span class="normal">645</span>
+<span class="normal">646</span>
+<span class="normal">647</span>
+<span class="normal">648</span>
+<span class="normal">649</span>
+<span class="normal">650</span>
+<span class="normal">651</span>
+<span class="normal">652</span>
+<span class="normal">653</span>
+<span class="normal">654</span>
+<span class="normal">655</span>
+<span class="normal">656</span>
+<span class="normal">657</span>
+<span class="normal">658</span>
+<span class="normal">659</span>
+<span class="normal">660</span>
+<span class="normal">661</span>
+<span class="normal">662</span>
+<span class="normal">663</span>
+<span class="normal">664</span>
+<span class="normal">665</span>
+<span class="normal">666</span>
+<span class="normal">667</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">compile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rho_0</span><span class="p">,</span> <span class="n">rho_f</span><span class="p">,</span> <span class="n">tau</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">halflife_epochs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
             <span class="n">anneal</span><span class="o">=</span><span class="s1">&#39;exponential&#39;</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">nbr_topo_alpha_0</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">nbr_topo_alpha_f</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+            <span class="n">nbr_topo_alpha_0</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">nbr_topo_alpha_f</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">compute_dr_metrics</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Set the neighbourhood bandwidth and topology-blending annealing schedules.</span>
 
@@ -2974,6 +3094,27 @@ supplied, if <code>anneal</code> is not recognised, or if either
 <span class="sd">        decays (less CONN influence over time). If</span>
 <span class="sd">        ``nbr_topo_alpha_f &gt; nbr_topo_alpha_0``, the schedule</span>
 <span class="sd">        increases (more CONN influence over time).</span>
+<span class="sd">    compute_dr_metrics : bool, default False</span>
+<span class="sd">        Whether to compute dimensionality reduction quality metrics at</span>
+<span class="sd">        each snapshot during :meth:`fit`. When True, each entry in</span>
+<span class="sd">        ``learn_history_`` will contain a ``&#39;dr_metrics&#39;`` key holding</span>
+<span class="sd">        a :class:`~gtsom.dr_metrics.DRMetricsResult` with the following</span>
+<span class="sd">        fields:</span>
+
+<span class="sd">        - ``Q_local``, ``Q_global``, ``Q_AUC``, ``LCMC_AUC``,</span>
+<span class="sd">          ``Trust_AUC`` — co-ranking family metrics (require</span>
+<span class="sd">          ``pyDRMetrics``; see note below).</span>
+<span class="sd">        - ``CONN_WAFL``, ``CONN_WAFL_SE`` — embedding folding metric</span>
+<span class="sd">          over the CONN graph (always computed; requires only numpy/scipy).</span>
+
+<span class="sd">        When False (default), ``&#39;dr_metrics&#39;`` is None in every snapshot</span>
+<span class="sd">        and ``pyDRMetrics`` is never imported.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            ``pyDRMetrics`` is not on PyPI and must be installed manually.</span>
+<span class="sd">            If it is not installed, co-ranking metrics will be None but</span>
+<span class="sd">            CONN_WAFL will still be computed. See</span>
+<span class="sd">            https://github.com/zhangys11/pyDRMetrics for installation.</span>
 
 <span class="sd">    Raises</span>
 <span class="sd">    ------</span>
@@ -2992,6 +3133,9 @@ supplied, if <code>anneal</code> is not recognised, or if either
 <span class="sd">    &gt;&gt;&gt; # Annealing from pure lattice toward CONN-dominated:</span>
 <span class="sd">    &gt;&gt;&gt; som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50,</span>
 <span class="sd">    ...             nbr_topo_alpha_0=1.0, nbr_topo_alpha_f=0.3)</span>
+<span class="sd">    &gt;&gt;&gt; # Enable DR metrics tracking:</span>
+<span class="sd">    &gt;&gt;&gt; som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50,</span>
+<span class="sd">    ...             compute_dr_metrics=True)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">anneal</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;exponential&#39;</span><span class="p">,):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -3045,6 +3189,16 @@ supplied, if <code>anneal</code> is not recognised, or if either
             <span class="ne">UserWarning</span><span class="p">,</span> <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
         <span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">n_jobs</span> <span class="o">=</span> <span class="n">resolve_n_jobs</span><span class="p">(</span><span class="n">n_jobs</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">compute_dr_metrics</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">compute_dr_metrics</span><span class="p">)</span>
+
+    <span class="c1"># Backfill DR metrics into the age-0 snapshot if it exists and was</span>
+    <span class="c1"># taken before compile() was called (i.e. at construction time).</span>
+    <span class="c1"># This ensures learn_history_[0] has a complete baseline entry,</span>
+    <span class="c1"># including DR metrics, so training progress can be tracked from</span>
+    <span class="c1"># the very start.</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_dr_metrics</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">learn_history_</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">learn_history_</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;dr_metrics&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">learn_history_</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;dr_metrics&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snapshot_dr_metrics</span><span class="p">()</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3214,43 +3368,7 @@ preprocess X before calling fit.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">637</span>
-<span class="normal">638</span>
-<span class="normal">639</span>
-<span class="normal">640</span>
-<span class="normal">641</span>
-<span class="normal">642</span>
-<span class="normal">643</span>
-<span class="normal">644</span>
-<span class="normal">645</span>
-<span class="normal">646</span>
-<span class="normal">647</span>
-<span class="normal">648</span>
-<span class="normal">649</span>
-<span class="normal">650</span>
-<span class="normal">651</span>
-<span class="normal">652</span>
-<span class="normal">653</span>
-<span class="normal">654</span>
-<span class="normal">655</span>
-<span class="normal">656</span>
-<span class="normal">657</span>
-<span class="normal">658</span>
-<span class="normal">659</span>
-<span class="normal">660</span>
-<span class="normal">661</span>
-<span class="normal">662</span>
-<span class="normal">663</span>
-<span class="normal">664</span>
-<span class="normal">665</span>
-<span class="normal">666</span>
-<span class="normal">667</span>
-<span class="normal">668</span>
-<span class="normal">669</span>
-<span class="normal">670</span>
-<span class="normal">671</span>
-<span class="normal">672</span>
-<span class="normal">673</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">673</span>
 <span class="normal">674</span>
 <span class="normal">675</span>
 <span class="normal">676</span>
@@ -3309,7 +3427,43 @@ preprocess X before calling fit.</p>
 <span class="normal">729</span>
 <span class="normal">730</span>
 <span class="normal">731</span>
-<span class="normal">732</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">n_epochs</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">plot_every</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
+<span class="normal">732</span>
+<span class="normal">733</span>
+<span class="normal">734</span>
+<span class="normal">735</span>
+<span class="normal">736</span>
+<span class="normal">737</span>
+<span class="normal">738</span>
+<span class="normal">739</span>
+<span class="normal">740</span>
+<span class="normal">741</span>
+<span class="normal">742</span>
+<span class="normal">743</span>
+<span class="normal">744</span>
+<span class="normal">745</span>
+<span class="normal">746</span>
+<span class="normal">747</span>
+<span class="normal">748</span>
+<span class="normal">749</span>
+<span class="normal">750</span>
+<span class="normal">751</span>
+<span class="normal">752</span>
+<span class="normal">753</span>
+<span class="normal">754</span>
+<span class="normal">755</span>
+<span class="normal">756</span>
+<span class="normal">757</span>
+<span class="normal">758</span>
+<span class="normal">759</span>
+<span class="normal">760</span>
+<span class="normal">761</span>
+<span class="normal">762</span>
+<span class="normal">763</span>
+<span class="normal">764</span>
+<span class="normal">765</span>
+<span class="normal">766</span>
+<span class="normal">767</span>
+<span class="normal">768</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">n_epochs</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">plot_every</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Fit the GTSOM to data X using batch SOM learning.</span>
 
@@ -3511,33 +3665,33 @@ preprocess X before calling fit.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">734</span>
-<span class="normal">735</span>
-<span class="normal">736</span>
-<span class="normal">737</span>
-<span class="normal">738</span>
-<span class="normal">739</span>
-<span class="normal">740</span>
-<span class="normal">741</span>
-<span class="normal">742</span>
-<span class="normal">743</span>
-<span class="normal">744</span>
-<span class="normal">745</span>
-<span class="normal">746</span>
-<span class="normal">747</span>
-<span class="normal">748</span>
-<span class="normal">749</span>
-<span class="normal">750</span>
-<span class="normal">751</span>
-<span class="normal">752</span>
-<span class="normal">753</span>
-<span class="normal">754</span>
-<span class="normal">755</span>
-<span class="normal">756</span>
-<span class="normal">757</span>
-<span class="normal">758</span>
-<span class="normal">759</span>
-<span class="normal">760</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">):</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">770</span>
+<span class="normal">771</span>
+<span class="normal">772</span>
+<span class="normal">773</span>
+<span class="normal">774</span>
+<span class="normal">775</span>
+<span class="normal">776</span>
+<span class="normal">777</span>
+<span class="normal">778</span>
+<span class="normal">779</span>
+<span class="normal">780</span>
+<span class="normal">781</span>
+<span class="normal">782</span>
+<span class="normal">783</span>
+<span class="normal">784</span>
+<span class="normal">785</span>
+<span class="normal">786</span>
+<span class="normal">787</span>
+<span class="normal">788</span>
+<span class="normal">789</span>
+<span class="normal">790</span>
+<span class="normal">791</span>
+<span class="normal">792</span>
+<span class="normal">793</span>
+<span class="normal">794</span>
+<span class="normal">795</span>
+<span class="normal">796</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Map data points to output coordinates via BMU lookup.</span>
 
@@ -3663,24 +3817,24 @@ preprocess X before calling fit.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">762</span>
-<span class="normal">763</span>
-<span class="normal">764</span>
-<span class="normal">765</span>
-<span class="normal">766</span>
-<span class="normal">767</span>
-<span class="normal">768</span>
-<span class="normal">769</span>
-<span class="normal">770</span>
-<span class="normal">771</span>
-<span class="normal">772</span>
-<span class="normal">773</span>
-<span class="normal">774</span>
-<span class="normal">775</span>
-<span class="normal">776</span>
-<span class="normal">777</span>
-<span class="normal">778</span>
-<span class="normal">779</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_kwargs</span><span class="p">):</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">798</span>
+<span class="normal">799</span>
+<span class="normal">800</span>
+<span class="normal">801</span>
+<span class="normal">802</span>
+<span class="normal">803</span>
+<span class="normal">804</span>
+<span class="normal">805</span>
+<span class="normal">806</span>
+<span class="normal">807</span>
+<span class="normal">808</span>
+<span class="normal">809</span>
+<span class="normal">810</span>
+<span class="normal">811</span>
+<span class="normal">812</span>
+<span class="normal">813</span>
+<span class="normal">814</span>
+<span class="normal">815</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Fit the GTSOM and return output coordinates.</span>
 
@@ -3977,43 +4131,7 @@ created internally.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 785</span>
-<span class="normal"> 786</span>
-<span class="normal"> 787</span>
-<span class="normal"> 788</span>
-<span class="normal"> 789</span>
-<span class="normal"> 790</span>
-<span class="normal"> 791</span>
-<span class="normal"> 792</span>
-<span class="normal"> 793</span>
-<span class="normal"> 794</span>
-<span class="normal"> 795</span>
-<span class="normal"> 796</span>
-<span class="normal"> 797</span>
-<span class="normal"> 798</span>
-<span class="normal"> 799</span>
-<span class="normal"> 800</span>
-<span class="normal"> 801</span>
-<span class="normal"> 802</span>
-<span class="normal"> 803</span>
-<span class="normal"> 804</span>
-<span class="normal"> 805</span>
-<span class="normal"> 806</span>
-<span class="normal"> 807</span>
-<span class="normal"> 808</span>
-<span class="normal"> 809</span>
-<span class="normal"> 810</span>
-<span class="normal"> 811</span>
-<span class="normal"> 812</span>
-<span class="normal"> 813</span>
-<span class="normal"> 814</span>
-<span class="normal"> 815</span>
-<span class="normal"> 816</span>
-<span class="normal"> 817</span>
-<span class="normal"> 818</span>
-<span class="normal"> 819</span>
-<span class="normal"> 820</span>
-<span class="normal"> 821</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 821</span>
 <span class="normal"> 822</span>
 <span class="normal"> 823</span>
 <span class="normal"> 824</span>
@@ -4197,7 +4315,43 @@ created internally.</p>
 <span class="normal">1002</span>
 <span class="normal">1003</span>
 <span class="normal">1004</span>
-<span class="normal">1005</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">plot</span><span class="p">(</span>
+<span class="normal">1005</span>
+<span class="normal">1006</span>
+<span class="normal">1007</span>
+<span class="normal">1008</span>
+<span class="normal">1009</span>
+<span class="normal">1010</span>
+<span class="normal">1011</span>
+<span class="normal">1012</span>
+<span class="normal">1013</span>
+<span class="normal">1014</span>
+<span class="normal">1015</span>
+<span class="normal">1016</span>
+<span class="normal">1017</span>
+<span class="normal">1018</span>
+<span class="normal">1019</span>
+<span class="normal">1020</span>
+<span class="normal">1021</span>
+<span class="normal">1022</span>
+<span class="normal">1023</span>
+<span class="normal">1024</span>
+<span class="normal">1025</span>
+<span class="normal">1026</span>
+<span class="normal">1027</span>
+<span class="normal">1028</span>
+<span class="normal">1029</span>
+<span class="normal">1030</span>
+<span class="normal">1031</span>
+<span class="normal">1032</span>
+<span class="normal">1033</span>
+<span class="normal">1034</span>
+<span class="normal">1035</span>
+<span class="normal">1036</span>
+<span class="normal">1037</span>
+<span class="normal">1038</span>
+<span class="normal">1039</span>
+<span class="normal">1040</span>
+<span class="normal">1041</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">plot</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">color_by</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span>
     <span class="n">cmap_continuous</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span>
@@ -4548,56 +4702,56 @@ of <code>coords</code> does not match the current embedding shape.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1152</span>
-<span class="normal">1153</span>
-<span class="normal">1154</span>
-<span class="normal">1155</span>
-<span class="normal">1156</span>
-<span class="normal">1157</span>
-<span class="normal">1158</span>
-<span class="normal">1159</span>
-<span class="normal">1160</span>
-<span class="normal">1161</span>
-<span class="normal">1162</span>
-<span class="normal">1163</span>
-<span class="normal">1164</span>
-<span class="normal">1165</span>
-<span class="normal">1166</span>
-<span class="normal">1167</span>
-<span class="normal">1168</span>
-<span class="normal">1169</span>
-<span class="normal">1170</span>
-<span class="normal">1171</span>
-<span class="normal">1172</span>
-<span class="normal">1173</span>
-<span class="normal">1174</span>
-<span class="normal">1175</span>
-<span class="normal">1176</span>
-<span class="normal">1177</span>
-<span class="normal">1178</span>
-<span class="normal">1179</span>
-<span class="normal">1180</span>
-<span class="normal">1181</span>
-<span class="normal">1182</span>
-<span class="normal">1183</span>
-<span class="normal">1184</span>
-<span class="normal">1185</span>
-<span class="normal">1186</span>
-<span class="normal">1187</span>
-<span class="normal">1188</span>
-<span class="normal">1189</span>
-<span class="normal">1190</span>
-<span class="normal">1191</span>
-<span class="normal">1192</span>
-<span class="normal">1193</span>
-<span class="normal">1194</span>
-<span class="normal">1195</span>
-<span class="normal">1196</span>
-<span class="normal">1197</span>
-<span class="normal">1198</span>
-<span class="normal">1199</span>
-<span class="normal">1200</span>
-<span class="normal">1201</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_embedding</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coords</span><span class="p">):</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1236</span>
+<span class="normal">1237</span>
+<span class="normal">1238</span>
+<span class="normal">1239</span>
+<span class="normal">1240</span>
+<span class="normal">1241</span>
+<span class="normal">1242</span>
+<span class="normal">1243</span>
+<span class="normal">1244</span>
+<span class="normal">1245</span>
+<span class="normal">1246</span>
+<span class="normal">1247</span>
+<span class="normal">1248</span>
+<span class="normal">1249</span>
+<span class="normal">1250</span>
+<span class="normal">1251</span>
+<span class="normal">1252</span>
+<span class="normal">1253</span>
+<span class="normal">1254</span>
+<span class="normal">1255</span>
+<span class="normal">1256</span>
+<span class="normal">1257</span>
+<span class="normal">1258</span>
+<span class="normal">1259</span>
+<span class="normal">1260</span>
+<span class="normal">1261</span>
+<span class="normal">1262</span>
+<span class="normal">1263</span>
+<span class="normal">1264</span>
+<span class="normal">1265</span>
+<span class="normal">1266</span>
+<span class="normal">1267</span>
+<span class="normal">1268</span>
+<span class="normal">1269</span>
+<span class="normal">1270</span>
+<span class="normal">1271</span>
+<span class="normal">1272</span>
+<span class="normal">1273</span>
+<span class="normal">1274</span>
+<span class="normal">1275</span>
+<span class="normal">1276</span>
+<span class="normal">1277</span>
+<span class="normal">1278</span>
+<span class="normal">1279</span>
+<span class="normal">1280</span>
+<span class="normal">1281</span>
+<span class="normal">1282</span>
+<span class="normal">1283</span>
+<span class="normal">1284</span>
+<span class="normal">1285</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_embedding</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coords</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Replace the output-space embedding coordinates and refresh the</span>
 <span class="sd">    neighbourhood weight matrix atomically.</span>
@@ -7268,6 +7422,534 @@ active neighbors. Self-activation (diagonal) is included.</p>
 
   </div>
 
+    </div>
+
+</div><h2 id="drmetrics">DRMetrics</h2>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="gtsom.dr_metrics.compute_dr_metrics" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">gtsom.dr_metrics.compute_dr_metrics</span>
+
+
+</h2>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">compute_dr_metrics</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">Y</span><span class="p">,</span>
+    <span class="n">embed_geodesic_dist</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">CONN</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">compute_coranking</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+        <p>Compute dimensionality reduction quality metrics for a (high-d, low-d) pair.</p>
+<p>Evaluates how faithfully the low-dimensional embedding <code>Y</code> preserves the
+structure of the high-dimensional point set <code>X</code>. Designed for use with
+SOM prototype vectors and their 2-D output-space coordinates, but
+applicable to any matched (high-d, low-d) pair.</p>
+<p>Two families of metrics are available:</p>
+<p><strong>Co-ranking family</strong> (requires <code>pyDRMetrics</code>): measures of neighbourhood
+preservation at local scales, global scales, and across all scales, plus a
+chance-corrected summary (LCMC_AUC) and a trustworthiness summary
+(Trust_AUC). Set <code>compute_coranking=False</code> to skip if <code>pyDRMetrics</code>
+is not installed.</p>
+<p><strong>CONN_WAFL</strong> (requires <code>embed_geodesic_dist</code> and <code>CONN</code>): a CONN-weighted measure of
+embedding folding — how many embedding hops are needed, on average, to
+span each high-d CONN neighbourhood. Requires only numpy/scipy.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>X</code>
+            </td>
+            <td>
+                  <code>(<span title="array">array</span> - <span title="like">like</span>, <span title="shape">shape</span>(<span title="M">M</span>, <span title="d">d</span>))</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>High-dimensional coordinates (e.g. SOM prototype vectors <code>W</code>).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>Y</code>
+            </td>
+            <td>
+                  <code>(<span title="array">array</span> - <span title="like">like</span>, <span title="shape">shape</span>(<span title="M">M</span>, <span title="dim">dim</span>))</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Low-dimensional coordinates (e.g. SOM embedding coords
+<code>Embedding.coords</code>).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>embed_geodesic_dist</code>
+            </td>
+            <td>
+                  <code>(<span title="numpy.ndarray">ndarray</span>, <span title="shape">shape</span>(<span title="M">M</span>, <span title="M">M</span>))</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Pairwise geodesic hop-count distances in the embedding graph.
+Required for CONN_WAFL. In GTSOM, this is <code>Embedding.dist</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>CONN</code>
+            </td>
+            <td>
+                  <code>scipy.sparse matrix, shape (M, M)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Prototype co-adjacency matrix. Required for CONN_WAFL. In GTSOM,
+this is <code>VQRecaller.CONN</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>compute_coranking</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether to compute co-ranking family metrics via <code>pyDRMetrics</code>.
+Set to False if <code>pyDRMetrics</code> is not installed or if only
+CONN_WAFL is needed.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="gtsom.dr_metrics.DRMetricsResult">DRMetricsResult</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dataclass with the following fields. Fields that were not computed
+are None.</p>
+<p>================  ==========  =============  =======================
+Field             Range       Better         Requires
+================  ==========  =============  =======================
+Q_local           [0, 1]      higher         pyDRMetrics
+Q_global          [0, 1]      higher         pyDRMetrics
+Q_AUC             [0, 1]      higher         pyDRMetrics
+LCMC_AUC          [0, 1]      higher         pyDRMetrics
+Trust_AUC         [0, 1]      higher         pyDRMetrics
+CONN_WAFL         [1, ∞)      lower (→ 1)   embed_geodesic_dist + CONN
+CONN_WAFL_SE      [0, ∞)      lower          embed_geodesic_dist + CONN
+================  ==========  =============  =======================</p>
+<p>See :class:<code>DRMetricsResult</code> for full descriptions of each field.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ImportError">ImportError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>compute_coranking=True</code> and <code>pyDRMetrics</code> is not installed.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>CONN</code> is provided without <code>embed_geodesic_dist</code>, or vice versa.
+If <code>X</code> and <code>Y</code> have different numbers of rows.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <p>Full metrics (requires pyDRMetrics and a CONN matrix):</p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">compute_dr_metrics</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">W</span><span class="p">,</span> <span class="n">Y</span><span class="o">=</span><span class="n">coords</span><span class="p">,</span> <span class="n">embed_geodesic_dist</span><span class="o">=</span><span class="n">embed</span><span class="o">.</span><span class="n">dist</span><span class="p">,</span>
+<span class="gp">... </span>                            <span class="n">CONN</span><span class="o">=</span><span class="n">recaller</span><span class="o">.</span><span class="n">CONN</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span><span class="o">.</span><span class="n">LCMC_AUC</span>
+<span class="go">0.812...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span><span class="o">.</span><span class="n">CONN_WAFL</span>
+<span class="go">1.043...</span>
+</code></pre></div>
+    <p>Co-ranking only (no CONN needed):</p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">compute_dr_metrics</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">W</span><span class="p">,</span> <span class="n">Y</span><span class="o">=</span><span class="n">coords</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span><span class="o">.</span><span class="n">Q_local</span>
+<span class="go">0.734...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span><span class="o">.</span><span class="n">Trust_AUC</span>
+<span class="go">0.891...</span>
+</code></pre></div>
+    <p>CONN_WAFL only (no pyDRMetrics needed):</p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">compute_dr_metrics</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">W</span><span class="p">,</span> <span class="n">Y</span><span class="o">=</span><span class="n">coords</span><span class="p">,</span> <span class="n">embed_geodesic_dist</span><span class="o">=</span><span class="n">embed</span><span class="o">.</span><span class="n">dist</span><span class="p">,</span>
+<span class="gp">... </span>                            <span class="n">CONN</span><span class="o">=</span><span class="n">recaller</span><span class="o">.</span><span class="n">CONN</span><span class="p">,</span>
+<span class="gp">... </span>                            <span class="n">compute_coranking</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span><span class="o">.</span><span class="n">CONN_WAFL</span>
+<span class="go">1.043...</span>
+</code></pre></div>
+
+
+<details class="note" open>
+  <summary>Notes</summary>
+  <p><code>X</code> and <code>Y</code> must have the same number of rows M (one row per point).
+No internal scaling is applied — pass pre-processed arrays if needed.</p>
+</details>
+
+            <details class="quote">
+              <summary>Source code in <code>src/gtsom/dr_metrics.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">275</span>
+<span class="normal">276</span>
+<span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span>
+<span class="normal">308</span>
+<span class="normal">309</span>
+<span class="normal">310</span>
+<span class="normal">311</span>
+<span class="normal">312</span>
+<span class="normal">313</span>
+<span class="normal">314</span>
+<span class="normal">315</span>
+<span class="normal">316</span>
+<span class="normal">317</span>
+<span class="normal">318</span>
+<span class="normal">319</span>
+<span class="normal">320</span>
+<span class="normal">321</span>
+<span class="normal">322</span>
+<span class="normal">323</span>
+<span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span>
+<span class="normal">331</span>
+<span class="normal">332</span>
+<span class="normal">333</span>
+<span class="normal">334</span>
+<span class="normal">335</span>
+<span class="normal">336</span>
+<span class="normal">337</span>
+<span class="normal">338</span>
+<span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span>
+<span class="normal">344</span>
+<span class="normal">345</span>
+<span class="normal">346</span>
+<span class="normal">347</span>
+<span class="normal">348</span>
+<span class="normal">349</span>
+<span class="normal">350</span>
+<span class="normal">351</span>
+<span class="normal">352</span>
+<span class="normal">353</span>
+<span class="normal">354</span>
+<span class="normal">355</span>
+<span class="normal">356</span>
+<span class="normal">357</span>
+<span class="normal">358</span>
+<span class="normal">359</span>
+<span class="normal">360</span>
+<span class="normal">361</span>
+<span class="normal">362</span>
+<span class="normal">363</span>
+<span class="normal">364</span>
+<span class="normal">365</span>
+<span class="normal">366</span>
+<span class="normal">367</span>
+<span class="normal">368</span>
+<span class="normal">369</span>
+<span class="normal">370</span>
+<span class="normal">371</span>
+<span class="normal">372</span>
+<span class="normal">373</span>
+<span class="normal">374</span>
+<span class="normal">375</span>
+<span class="normal">376</span>
+<span class="normal">377</span>
+<span class="normal">378</span>
+<span class="normal">379</span>
+<span class="normal">380</span>
+<span class="normal">381</span>
+<span class="normal">382</span>
+<span class="normal">383</span>
+<span class="normal">384</span>
+<span class="normal">385</span>
+<span class="normal">386</span>
+<span class="normal">387</span>
+<span class="normal">388</span>
+<span class="normal">389</span>
+<span class="normal">390</span>
+<span class="normal">391</span>
+<span class="normal">392</span>
+<span class="normal">393</span>
+<span class="normal">394</span>
+<span class="normal">395</span>
+<span class="normal">396</span>
+<span class="normal">397</span>
+<span class="normal">398</span>
+<span class="normal">399</span>
+<span class="normal">400</span>
+<span class="normal">401</span>
+<span class="normal">402</span>
+<span class="normal">403</span>
+<span class="normal">404</span>
+<span class="normal">405</span>
+<span class="normal">406</span>
+<span class="normal">407</span>
+<span class="normal">408</span>
+<span class="normal">409</span>
+<span class="normal">410</span>
+<span class="normal">411</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">compute_dr_metrics</span><span class="p">(</span>
+    <span class="n">X</span><span class="p">,</span>
+    <span class="n">Y</span><span class="p">,</span>
+    <span class="n">embed_geodesic_dist</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">CONN</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">compute_coranking</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute dimensionality reduction quality metrics for a (high-d, low-d) pair.</span>
+
+<span class="sd">    Evaluates how faithfully the low-dimensional embedding ``Y`` preserves the</span>
+<span class="sd">    structure of the high-dimensional point set ``X``. Designed for use with</span>
+<span class="sd">    SOM prototype vectors and their 2-D output-space coordinates, but</span>
+<span class="sd">    applicable to any matched (high-d, low-d) pair.</span>
+
+<span class="sd">    Two families of metrics are available:</span>
+
+<span class="sd">    **Co-ranking family** (requires ``pyDRMetrics``): measures of neighbourhood</span>
+<span class="sd">    preservation at local scales, global scales, and across all scales, plus a</span>
+<span class="sd">    chance-corrected summary (LCMC_AUC) and a trustworthiness summary</span>
+<span class="sd">    (Trust_AUC). Set ``compute_coranking=False`` to skip if ``pyDRMetrics``</span>
+<span class="sd">    is not installed.</span>
+
+<span class="sd">    **CONN_WAFL** (requires ``embed_geodesic_dist`` and ``CONN``): a CONN-weighted measure of</span>
+<span class="sd">    embedding folding — how many embedding hops are needed, on average, to</span>
+<span class="sd">    span each high-d CONN neighbourhood. Requires only numpy/scipy.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    X : array-like, shape (M, d)</span>
+<span class="sd">        High-dimensional coordinates (e.g. SOM prototype vectors ``W``).</span>
+<span class="sd">    Y : array-like, shape (M, dim)</span>
+<span class="sd">        Low-dimensional coordinates (e.g. SOM embedding coords</span>
+<span class="sd">        ``Embedding.coords``).</span>
+<span class="sd">    embed_geodesic_dist : np.ndarray, shape (M, M), optional</span>
+<span class="sd">        Pairwise geodesic hop-count distances in the embedding graph.</span>
+<span class="sd">        Required for CONN_WAFL. In GTSOM, this is ``Embedding.dist``.</span>
+<span class="sd">    CONN : scipy.sparse matrix, shape (M, M), optional</span>
+<span class="sd">        Prototype co-adjacency matrix. Required for CONN_WAFL. In GTSOM,</span>
+<span class="sd">        this is ``VQRecaller.CONN``.</span>
+<span class="sd">    compute_coranking : bool, default True</span>
+<span class="sd">        Whether to compute co-ranking family metrics via ``pyDRMetrics``.</span>
+<span class="sd">        Set to False if ``pyDRMetrics`` is not installed or if only</span>
+<span class="sd">        CONN_WAFL is needed.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    DRMetricsResult</span>
+<span class="sd">        Dataclass with the following fields. Fields that were not computed</span>
+<span class="sd">        are None.</span>
+
+<span class="sd">        ================  ==========  =============  =======================</span>
+<span class="sd">        Field             Range       Better         Requires</span>
+<span class="sd">        ================  ==========  =============  =======================</span>
+<span class="sd">        Q_local           [0, 1]      higher         pyDRMetrics</span>
+<span class="sd">        Q_global          [0, 1]      higher         pyDRMetrics</span>
+<span class="sd">        Q_AUC             [0, 1]      higher         pyDRMetrics</span>
+<span class="sd">        LCMC_AUC          [0, 1]      higher         pyDRMetrics</span>
+<span class="sd">        Trust_AUC         [0, 1]      higher         pyDRMetrics</span>
+<span class="sd">        CONN_WAFL         [1, ∞)      lower (→ 1)   embed_geodesic_dist + CONN</span>
+<span class="sd">        CONN_WAFL_SE      [0, ∞)      lower          embed_geodesic_dist + CONN</span>
+<span class="sd">        ================  ==========  =============  =======================</span>
+
+<span class="sd">        See :class:`DRMetricsResult` for full descriptions of each field.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ImportError</span>
+<span class="sd">        If ``compute_coranking=True`` and ``pyDRMetrics`` is not installed.</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If ``CONN`` is provided without ``embed_geodesic_dist``, or vice versa.</span>
+<span class="sd">        If ``X`` and ``Y`` have different numbers of rows.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    Full metrics (requires pyDRMetrics and a CONN matrix):</span>
+
+<span class="sd">    &gt;&gt;&gt; result = compute_dr_metrics(X=W, Y=coords, embed_geodesic_dist=embed.dist,</span>
+<span class="sd">    ...                             CONN=recaller.CONN)</span>
+<span class="sd">    &gt;&gt;&gt; result.LCMC_AUC</span>
+<span class="sd">    0.812...</span>
+<span class="sd">    &gt;&gt;&gt; result.CONN_WAFL</span>
+<span class="sd">    1.043...</span>
+
+<span class="sd">    Co-ranking only (no CONN needed):</span>
+
+<span class="sd">    &gt;&gt;&gt; result = compute_dr_metrics(X=W, Y=coords)</span>
+<span class="sd">    &gt;&gt;&gt; result.Q_local</span>
+<span class="sd">    0.734...</span>
+<span class="sd">    &gt;&gt;&gt; result.Trust_AUC</span>
+<span class="sd">    0.891...</span>
+
+<span class="sd">    CONN_WAFL only (no pyDRMetrics needed):</span>
+
+<span class="sd">    &gt;&gt;&gt; result = compute_dr_metrics(X=W, Y=coords, embed_geodesic_dist=embed.dist,</span>
+<span class="sd">    ...                             CONN=recaller.CONN,</span>
+<span class="sd">    ...                             compute_coranking=False)</span>
+<span class="sd">    &gt;&gt;&gt; result.CONN_WAFL</span>
+<span class="sd">    1.043...</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    ``X`` and ``Y`` must have the same number of rows M (one row per point).</span>
+<span class="sd">    No internal scaling is applied — pass pre-processed arrays if needed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">Y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">Y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;X and Y must have the same number of rows. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Got X.shape=</span><span class="si">{</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">, Y.shape=</span><span class="si">{</span><span class="n">Y</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">embed_geodesic_dist</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="o">!=</span> <span class="p">(</span><span class="n">CONN</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;embed_geodesic_dist and CONN must be supplied together — both or neither.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">DRMetricsResult</span><span class="p">()</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Co-ranking family metrics</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="k">if</span> <span class="n">compute_coranking</span><span class="p">:</span>
+        <span class="p">(</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">Q_local</span><span class="p">,</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">Q_global</span><span class="p">,</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">Q_AUC</span><span class="p">,</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">LCMC_AUC</span><span class="p">,</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">Trust_AUC</span><span class="p">,</span>
+        <span class="p">)</span> <span class="o">=</span> <span class="n">_compute_coranking_metrics</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">)</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># CONN_WAFL</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="k">if</span> <span class="n">embed_geodesic_dist</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">CONN</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">CONN_WAFL</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">CONN_WAFL_SE</span> <span class="o">=</span> <span class="n">_compute_conn_wafl</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">embed_geodesic_dist</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">),</span> <span class="n">CONN</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">result</span>
+</code></pre></div></td></tr></table></div>
+            </details>
     </div>
 
 </div>
