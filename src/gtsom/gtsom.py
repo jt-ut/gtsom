@@ -9,19 +9,21 @@ by geodesic distances on the output manifold.
 Typical usage
 -------------
 # Grid-based (classical SOM style)
-som = GTSOM.from_grid(X, shape=(10, 10), coord_init='hex', W_init='random')
-som.compile(rho_0=5.0, rho_f=0.5, tau=20)
+som = GTSOM(rho_0=5.0, rho_f=0.5, halflife_epochs=50)
+som.from_grid(X, shape=(10, 10), coord_init='hex', W_init='random')
 som.fit(X, n_epochs=20)
 
 # Data-driven (general topology)
-som = GTSOM.from_data(X, M=100, coord_dim=2, coord_init='pca', W_init='kmeans')
-som.compile(rho_0=5.0, rho_f=0.5, tau=20)
+som = GTSOM(rho_0=5.0, rho_f=0.5, halflife_epochs=50)
+som.from_data(X, M=100, coord_dim=2, coord_init='pca', W_init='kmeans')
 som.fit(X, n_epochs=20)
 
 # Hybrid lattice + CONN-based neighbourhood update
-som = GTSOM.from_data(X, M=100, coord_dim=2, coord_init='pca', W_init='kmeans')
-som.compile(rho_0=5.0, rho_f=0.5, tau=20,
-            nbr_topo_alpha_0=1.0, nbr_topo_alpha_f=0.3)
+som = GTSOM(
+    rho_0=5.0, rho_f=0.5, halflife_epochs=50,
+    nbr_topo_alpha_0=1.0, nbr_topo_alpha_f=0.3,
+)
+som.from_data(X, M=100, coord_dim=2, coord_init='pca', W_init='kmeans')
 som.fit(X, n_epochs=20)
 
 Notes
@@ -142,94 +144,174 @@ class GTSOM:
     """
     General Topology Self-Organizing Map.
 
-    Do not construct directly for typical use — prefer the classmethods
-    :meth:`from_grid` and :meth:`from_data`, which handle all initialisation
-    internally and return a ready-to-fit instance.
+    The constructor sets all learning parameters (schedules, parallelism,
+    diagnostics). After construction, call :meth:`from_grid` or
+    :meth:`from_data` to set the output topology and initialise prototypes,
+    then call :meth:`fit` to train.
 
     Parameters
     ----------
-    W : array-like, shape (M, d)
-        Initial prototype matrix.
-    embed : Embedding
-        Output-space embedding. Must already have coords, adjacency, and dist
-        populated (i.e. ``compute_topo()`` already called).
-    recaller : VQRecaller
-        Nearest-prototype search object. Should be freshly constructed
-        (unfitted); :meth:`fit` will call ``update_BMU`` each epoch.
-    kernel : NeighborKernel
-        Neighbourhood activation kernel.
+    rho_0 : float
+        Initial neighbourhood bandwidth.
+    rho_f : float
+        Final (minimum) neighbourhood bandwidth.
+    tau : float, optional
+        Exponential decay time constant in epochs. Mutually exclusive with
+        ``halflife_epochs``.
+    halflife_epochs : float, optional
+        Epoch at which each annealed parameter reaches the geometric midpoint
+        between its initial and final values. Mutually exclusive with ``tau``.
+    anneal : {'exponential'}, default 'exponential'
+        Annealing schedule type. Currently only exponential decay is supported.
+    n_jobs : int or None, default None
+        Number of parallel threads for prototype updates. ``None`` or ``-1``
+        uses all available CPU cores. Ignored with a warning if numba is not
+        installed.
+    nbr_topo_alpha_0 : float, default 1.0
+        Initial value of the topology-blending parameter, in [0, 1]. When
+        1.0, pure lattice-based neighbourhood (classical SOM). When < 1.0,
+        a blend of lattice and CONN-graph neighbourhood is used. See
+        :meth:`_compute_neighborhood` for the full blending rule.
+    nbr_topo_alpha_f : float, optional
+        Final value of the topology-blending parameter, in [0, 1]. Defaults
+        to ``nbr_topo_alpha_0`` for a flat (non-annealing) schedule.
+    compute_dr_metrics : bool, default False
+        Whether to compute dimensionality reduction quality metrics at each
+        snapshot. When True, each entry in ``learn_history_`` will contain a
+        :class:`~gtsom.dr_metrics.DRMetricsResult` with co-ranking and
+        CONN_WAFL metrics.
+    nbr_influence_min : float, default 0.01
+        Neighbourhood kernel activation floor. Kernel weights below this
+        value are zeroed. Shared across all architecture configurations built
+        on this instance.
     random_state : int or None, default None
-        Seed for all random operations. Stored as an instance variable and
-        passed to any internal method that requires a random number generator.
+        Seed for all random operations.
 
     Notes
     -----
     GTSOM does not perform any internal scaling of X. It is the caller's
     responsibility to whiten, standardise, or otherwise preprocess X before
-    passing it to any method. Distances computed during prototype updates and
-    BMU search will reflect the scale of the input features.
+    passing it to any method.
+
+    Raises
+    ------
+    ValueError
+        If neither or both of ``tau`` and ``halflife_epochs`` are supplied,
+        if ``anneal`` is not recognised, if either alpha parameter is
+        outside [0, 1], or if ``nbr_influence_min`` is not in (0, 1).
     """
 
-    def __init__(self, W, embed, recaller, kernel, random_state=None):
-        W = np.asarray(W)
-        if W.ndim != 2:
-            raise ValueError(f"W must be 2-D, got shape {W.shape}")
-
-        M_w = W.shape[0]
-        M_e = embed.coords.shape[0]
-        if M_w != M_e:
+    def __init__(
+        self,
+        rho_0,
+        rho_f,
+        tau=None,
+        halflife_epochs=None,
+        anneal='exponential',
+        n_jobs=None,
+        nbr_topo_alpha_0=1.0,
+        nbr_topo_alpha_f=None,
+        compute_dr_metrics=False,
+        nbr_influence_min=0.01,
+        random_state=None,
+    ):
+        # ------------------------------------------------------------------
+        # Validate schedule parameters
+        # ------------------------------------------------------------------
+        if anneal not in ('exponential',):
             raise ValueError(
-                f"W has {M_w} prototypes but embed has {M_e} neurons."
+                f"anneal must be 'exponential', got {anneal!r}. "
+                "Additional schedules may be added in future."
+            )
+        if tau is None and halflife_epochs is None:
+            raise ValueError(
+                "Exactly one of tau or halflife_epochs must be supplied."
+            )
+        if tau is not None and halflife_epochs is not None:
+            raise ValueError(
+                "Supply either tau or halflife_epochs, not both."
             )
 
-        self.W = W
-        self.embed = embed
-        self.recaller = recaller
-        self.kernel = kernel
-        self.random_state = random_state
+        alpha_f = nbr_topo_alpha_f if nbr_topo_alpha_f is not None else nbr_topo_alpha_0
+        if not (0.0 <= nbr_topo_alpha_0 <= 1.0):
+            raise ValueError(
+                f"nbr_topo_alpha_0 must be in [0, 1], got {nbr_topo_alpha_0}."
+            )
+        if not (0.0 <= alpha_f <= 1.0):
+            raise ValueError(
+                f"nbr_topo_alpha_f must be in [0, 1], got {alpha_f}."
+            )
+        if not (0.0 < nbr_influence_min < 1.0):
+            raise ValueError(
+                f"nbr_influence_min must be in (0, 1), got {nbr_influence_min}."
+            )
 
-        # DataValidator — set by classmethods after X is first seen;
-        # used to warn if a different X is passed to fit() or transform()
-        self._validator = None
+        # ------------------------------------------------------------------
+        # Build annealing schedules
+        # ------------------------------------------------------------------
+        if tau is not None:
+            self.rho_schedule   = ExponentialAnneal(
+                initial=rho_0, final=rho_f, tau=tau
+            )
+            self.alpha_schedule = ExponentialAnneal(
+                initial=nbr_topo_alpha_0, final=alpha_f, tau=tau
+            )
+        else:
+            self.rho_schedule   = ExponentialAnneal.from_halflife(
+                initial=rho_0, final=rho_f, halflife_epochs=halflife_epochs
+            )
+            self.alpha_schedule = ExponentialAnneal.from_halflife(
+                initial=nbr_topo_alpha_0, final=alpha_f,
+                halflife_epochs=halflife_epochs
+            )
 
-        # Annealing schedule and parallelism — set by compile()
-        self.rho_schedule        = None
-        self.alpha_schedule      = None   # topology-blending annealing; set by compile()
-        self.n_jobs              = None   # resolved thread count; None = all cores
-        self.compute_dr_metrics  = False  # DR quality metrics; set by compile()
+        # ------------------------------------------------------------------
+        # Store learning configuration
+        # ------------------------------------------------------------------
+        self.nbr_influence_min = nbr_influence_min
+        self.random_state       = random_state
+        self.compute_dr_metrics = bool(compute_dr_metrics)
 
-        # Fit state — populated during fit()
-        self.nbr_W = None
+        # Resolve and store thread count
+        if not PARALLEL and n_jobs is not None and n_jobs != 1:
+            import warnings
+            warnings.warn(
+                f"n_jobs={n_jobs} ignored: numba is not installed. "
+                "Install numba for parallel prototype updates.",
+                UserWarning, stacklevel=2,
+            )
+        self.n_jobs = resolve_n_jobs(n_jobs)
 
-        # Current training age (total epochs completed across all fit() calls)
-        self.age = 0
+        # ------------------------------------------------------------------
+        # Architecture attributes — None until from_grid / from_data is called
+        # ------------------------------------------------------------------
+        self.W          = None   # prototype matrix (M, d)
+        self.embed      = None   # Embedding instance
+        self.recaller   = None   # VQRecaller instance
+        self.kernel     = None   # NeighborKernel instance
+        self._validator = None   # DataValidator instance
+        self.prevBMU    = None   # (N,) previous-epoch BMU assignments
+        self.W0         = None   # initial prototype matrix (never modified)
+        self.coords0    = None   # initial embedding coords (never modified)
+        self.nbr_W      = None   # neighbourhood weight matrix (M, M)
 
-        # Cumulative wall-clock time spent in fit() calls, in seconds.
-        # Accumulated with += across successive fit() calls.
-        self.train_time = 0.0
-
-        # Initial prototype matrix and embedding coords, stored at construction
-        # for reference (e.g. visualising how prototypes evolved from their
-        # starting positions). Never modified after initialisation.
-        self.W0 = None        # set by classmethods after W is finalised
-        self.coords0 = None   # set by classmethods after embed is finalised
-
-        # Previous-epoch BMU assignments, shape (N,), used to compute delBMU.
-        # Initialised to a vector of -1s by the classmethods (using N from
-        # DataValidator) so that delBMU = 1.0 at age=0 by construction,
-        # since -1 never matches a valid BMU index.
-        self.prevBMU = None   # set by classmethods to np.full(N, -1, dtype=int)
+        # ------------------------------------------------------------------
+        # Training state
+        # ------------------------------------------------------------------
+        self.age         = 0     # total epochs completed
+        self.train_time  = 0.0   # cumulative wall-clock training time (s)
 
         # Learning history: list of snapshot dicts, one per recorded epoch.
-        # learn_history_[0] is always the post-initialisation state (age=0).
-        # Subsequent entries are appended by fit() after each epoch.
+        # learn_history_[0] is the post-architecture-init state (age=0),
+        # populated by from_grid / from_data. Subsequent entries are
+        # appended by fit() after each epoch.
         # Each dict contains:
-        #   'age'    : int      — self.age at the time of the snapshot
-        #   'mqe'    : float    — global mean quantization error over all data
-        #   'W_mqe'  : ndarray (M,) — per-prototype MQE, nan for empty RFs
-        #   'delBMU' : float    — proportion of data whose BMU changed since
-        #                         the previous epoch; 1.0 at age=0 by definition
-        #   'fig'    : ggplot or None — plot captured this epoch (or None)
+        #   'age'        : int              — self.age at snapshot time
+        #   'mqe'        : float            — global MQE over all data
+        #   'W_mqe'      : ndarray (M,)     — per-prototype MQE, nan for empty RFs
+        #   'delBMU'     : float            — fraction of data whose BMU changed
+        #   'dr_metrics' : DRMetricsResult  — DR quality metrics, or None
+        #   'fig'        : ggplot or None   — plot captured this epoch
         self.learn_history_ = []
 
     # ------------------------------------------------------------------
@@ -239,41 +321,53 @@ class GTSOM:
     @property
     def M(self):
         """Number of prototypes (neurons)."""
+        if self.W is None:
+            raise RuntimeError(
+                "Architecture not initialised. "
+                "Call from_grid() or from_data() first."
+            )
         return self.W.shape[0]
 
     @property
     def d(self):
         """Dimensionality of the high-dimensional feature space."""
+        if self.W is None:
+            raise RuntimeError(
+                "Architecture not initialised. "
+                "Call from_grid() or from_data() first."
+            )
         return self.W.shape[1]
 
     # ------------------------------------------------------------------
-    # Classmethods — initialisation factories
+    # Architecture initialisation — instance methods
     # ------------------------------------------------------------------
 
-    @classmethod
     def from_grid(
-        cls,
+        self,
         X,
         shape,
         coord_init='hex',
         W_init='random',
-        h_min=0.01,
-        random_state=None,
         labels=None,
     ):
         """
-        Initialise a GTSOM on a regular grid output topology.
+        Set a regular grid output topology and initialise prototypes.
+
+        Wipes any existing architecture (W, embed, recaller, learn_history_,
+        etc.) and builds a fresh grid-based configuration. All learning
+        parameters (rho schedules, nbr_influence_min, etc.) are inherited from the
+        values set in ``__init__`` and are not changed.
 
         Parameters
         ----------
         X : array-like, shape (N, d)
             Training data. Used for prototype initialisation; not stored.
         shape : tuple of int
-            Grid dimensions, e.g. ``(10, 10)`` or ``(5, 10, 4)``. The length
-            of the tuple sets the embedding dimension (2 or 3).
+            Grid dimensions, e.g. ``(10, 10)`` or ``(5, 10, 4)``. The
+            length of the tuple sets the embedding dimension (2 or 3).
         coord_init : {'hex', 'rect'}, default 'hex'
-            Grid layout. ``'hex'`` uses a hexagonal arrangement (Delaunay);
-            ``'rect'`` uses an 8-connected rectangular grid.
+            Grid layout. ``'hex'`` uses a hexagonal arrangement (Delaunay
+            adjacency); ``'rect'`` uses an 8-connected rectangular grid.
         W_init : {'random', 'pca'}, default 'random'
             How to initialise prototype vectors W.
 
@@ -283,20 +377,15 @@ class GTSOM:
                 Back-project grid neuron coordinates through the PCA of X,
                 placing each prototype at the corresponding point in high-d
                 feature space.
-        h_min : float, default 0.01
-            Neighbourhood kernel activation threshold; weights below this
-            value are zeroed. Passed to :class:`NeighborKernel`.
-        random_state : int or None, default None
-            Seed for reproducibility.
         labels : array-like, shape (N,), default None
-            Optional observation labels. Any hashable type is accepted
-            (int, str, float, etc.). If provided, prototype-level label
+            Optional observation labels. If provided, prototype-level label
             summaries (WL, WL_Dist, WL_Purity) are computed during the
             initial recall and stored on ``self.recaller``.
 
         Returns
         -------
-        GTSOM
+        self : GTSOM
+            Returns self for optional method chaining.
 
         Raises
         ------
@@ -305,10 +394,6 @@ class GTSOM:
             ``W_init`` are not recognised, or the grid has more neurons
             than data points.
         """
-        validator = DataValidator(X)
-        X = np.asarray(X)
-        rng = np.random.default_rng(random_state)
-
         if coord_init not in ('hex', 'rect'):
             raise ValueError(
                 f"coord_init must be 'hex' or 'rect' for from_grid, "
@@ -324,6 +409,9 @@ class GTSOM:
                 f"shape must be a 2- or 3-tuple, got length {len(shape)}"
             )
 
+        X = np.asarray(X)
+        rng = np.random.default_rng(self.random_state)
+
         # Build embedding — grid kind matches coord_init
         embed = Embedding.from_grid(shape, kind=coord_init)
         M = embed.coords.shape[0]
@@ -338,35 +426,28 @@ class GTSOM:
         if W_init == 'random':
             W = _init_W_random(X, M, rng)
         else:  # 'pca'
-            W = _init_W_pca(X, embed, random_state)
+            W = _init_W_pca(X, embed, self.random_state)
 
-        recaller = VQRecaller(p=2, max_bmu=2, verbose=False)
-        kernel = NeighborKernel(h_min=h_min)
+        self._init_architecture(X, W, embed, labels)
+        return self
 
-        instance = cls(W, embed, recaller, kernel, random_state=random_state)
-        instance._validator = validator
-        instance.prevBMU = np.full(validator.shape[0], -1, dtype=int)
-        instance.W0 = W.copy()
-        instance.coords0 = embed.coords.copy()
-        instance._recall(X, labels=labels)
-        instance._snapshot(include_fig=True)
-        return instance
-
-    @classmethod
     def from_data(
-        cls,
+        self,
         X,
         M,
         coord_dim=2,
         coord_init='pca',
         W_init='kmeans',
         coord_topo='delaunay',
-        h_min=0.01,
-        random_state=None,
         labels=None,
     ):
         """
-        Initialise a GTSOM with a data-driven output topology.
+        Set a data-driven output topology and initialise prototypes.
+
+        Wipes any existing architecture (W, embed, recaller, learn_history_,
+        etc.) and builds a fresh data-driven configuration. All learning
+        parameters (rho schedules, nbr_influence_min, etc.) are inherited from the
+        values set in ``__init__`` and are not changed.
 
         Prototype vectors are found via vector quantisation of X, projected
         to ``coord_dim`` dimensions to define neuron positions, and either
@@ -391,18 +472,6 @@ class GTSOM:
             ``'le'``
                 Laplacian Eigenmaps via sklearn SpectralEmbedding
                 (nonlinear, slower).
-        coord_topo : {'delaunay', 'gabriel'}, default 'delaunay'
-            Graph used to define the output-space topology from the
-            projected prototype coordinates.
-
-            ``'delaunay'``
-                Delaunay triangulation. Denser connectivity; every
-                prototype is guaranteed at least a few neighbours.
-            ``'gabriel'``
-                Gabriel graph (a subgraph of Delaunay). Sparser
-                connectivity that more closely reflects local proximity
-                structure. Guaranteed to be connected for any finite
-                point set in general position.
         W_init : {'kmeans', 'random'}, default 'kmeans'
             How to find initial prototype vectors.
 
@@ -410,34 +479,34 @@ class GTSOM:
                 FAISS k-means via VQFitter (requires vqlp).
             ``'random'``
                 Random sample of M rows from X.
-        h_min : float, default 0.01
-            Neighbourhood kernel activation threshold; weights below this
-            value are zeroed. Passed to :class:`NeighborKernel`.
-        random_state : int or None, default None
-            Seed for reproducibility. Passed to VQ, dim-reduction, and
-            any random sampling steps.
+        coord_topo : {'delaunay', 'gabriel'}, default 'delaunay'
+            Graph used to define the output-space topology from the
+            projected prototype coordinates.
+
+            ``'delaunay'``
+                Delaunay triangulation. Denser connectivity.
+            ``'gabriel'``
+                Gabriel graph (subgraph of Delaunay). Sparser connectivity
+                that more closely reflects local proximity structure.
         labels : array-like, shape (N,), default None
-            Optional observation labels. Any hashable type is accepted
-            (int, str, float, etc.). If provided, prototype-level label
+            Optional observation labels. If provided, prototype-level label
             summaries (WL, WL_Dist, WL_Purity) are computed during the
             initial recall and stored on ``self.recaller``.
 
         Returns
         -------
-        GTSOM
+        self : GTSOM
+            Returns self for optional method chaining.
 
         Raises
         ------
         ValueError
-            If ``coord_dim`` is not 2 or 3, ``coord_init``, ``W_init``,
-            or ``coord_topo`` are not recognised, or M is out of range.
+            If ``coord_dim`` is not 2 or 3, or if any of ``coord_init``,
+            ``W_init``, or ``coord_topo`` are not recognised, or M is out
+            of range.
         ImportError
             If ``W_init='kmeans'`` and vqlp is not installed.
         """
-        validator = DataValidator(X)
-        X = np.asarray(X)
-        rng = np.random.default_rng(random_state)
-
         if coord_dim not in (2, 3):
             raise ValueError(f"coord_dim must be 2 or 3, got {coord_dim!r}")
         if coord_init not in ('pca', 'le'):
@@ -464,17 +533,20 @@ class GTSOM:
                 f"M must be at least 3 for Delaunay triangulation, got {M}."
             )
 
+        X = np.asarray(X)
+        rng = np.random.default_rng(self.random_state)
+
         # Step 1: initialise prototype vectors in high-d
         if W_init == 'kmeans':
-            W = _init_W_kmeans(X, M, random_state)
+            W = _init_W_kmeans(X, M, self.random_state)
         else:  # 'random'
             W = _init_W_random(X, M, rng)
 
         # Step 2: project W to coord_dim to define neuron positions
         if coord_init == 'pca':
-            coords = reduce_coords_pca(W, coord_dim, random_state)
+            coords = reduce_coords_pca(W, coord_dim, self.random_state)
         else:  # 'le'
-            coords = reduce_coords_le(W, coord_dim, random_state)
+            coords = reduce_coords_le(W, coord_dim, self.random_state)
 
         # Step 3: build embedding from projected coords using chosen topology
         if coord_topo == 'delaunay':
@@ -482,189 +554,8 @@ class GTSOM:
         else:  # 'gabriel'
             embed = Embedding.from_gabriel(coords)
 
-        # Step 4: build recaller and kernel
-        recaller = VQRecaller(p=2, max_bmu=2, verbose=False)
-        kernel = NeighborKernel(h_min=h_min)
-
-        instance = cls(W, embed, recaller, kernel, random_state=random_state)
-        instance._validator = validator
-        instance.prevBMU = np.full(validator.shape[0], -1, dtype=int)
-        instance.W0 = W.copy()
-        instance.coords0 = embed.coords.copy()
-        instance._recall(X, labels=labels)
-        instance._snapshot(include_fig=True)
-        return instance
-
-    # ------------------------------------------------------------------
-    # Training configuration
-    # ------------------------------------------------------------------
-
-    def compile(self, rho_0, rho_f, tau=None, halflife_epochs=None,
-                anneal='exponential', n_jobs=None,
-                nbr_topo_alpha_0=1.0, nbr_topo_alpha_f=None,
-                compute_dr_metrics=False):
-        """
-        Set the neighbourhood bandwidth and topology-blending annealing schedules.
-
-        Must be called at least once before :meth:`fit`. Can be called
-        again at any time to change the schedule or blending parameters —
-        for example, to slow the decay rate for a refinement phase — without
-        affecting ``self.age``, ``self.W``, or ``self.learn_history_``.
-
-        To start learning from scratch, construct a new instance via
-        :meth:`from_grid` or :meth:`from_data` rather than calling
-        ``compile()`` again.
-
-        Exactly one of ``tau`` or ``halflife_epochs`` must be supplied.
-        The resolved time constant is shared across all annealed parameters
-        (``rho`` and ``nbr_topo_alpha``).
-
-        Parameters
-        ----------
-        rho_0 : float
-            Initial neighbourhood bandwidth, evaluated at the current
-            ``self.age`` on the first subsequent :meth:`fit` epoch.
-        rho_f : float
-            Final (minimum) neighbourhood bandwidth.
-        tau : float, optional
-            Exponential decay time constant in epochs, shared across all
-            annealed parameters. Mutually exclusive with ``halflife_epochs``.
-        halflife_epochs : float, optional
-            Convenience alternative to ``tau``. The epoch at which each
-            annealed parameter reaches the geometric midpoint between its
-            initial and final values — i.e. the half-life of the decay.
-            The schedule clips at the final value at ``2 * halflife_epochs``.
-            Mutually exclusive with ``tau``.
-        anneal : {'exponential'}, default 'exponential'
-            Annealing schedule type. Currently only exponential decay
-            is supported.
-        n_jobs : int or None, default None
-            Number of parallel threads for prototype updates.
-            ``None`` or ``-1`` uses all available CPU cores.
-            ``1`` forces single-threaded execution regardless of whether
-            numba is installed (useful for debugging or benchmarking).
-            Values > 1 are silently clamped to ``os.cpu_count()``.
-            Ignored with a warning if numba is not installed.
-        nbr_topo_alpha_0 : float, default 1.0
-            Initial value of the topology-blending parameter. Must be
-            in [0, 1]. See :meth:`_compute_neighborhood` for a full
-            description of the blending rule.
-        nbr_topo_alpha_f : float, optional
-            Final value of the topology-blending parameter. Must be in
-            [0, 1] and must differ from ``nbr_topo_alpha_0`` if annealing
-            is desired. If not supplied, defaults to ``nbr_topo_alpha_0``,
-            producing a flat (non-annealing) schedule — equivalent to the
-            fixed ``nbr_topo_alpha`` behaviour of earlier versions.
-
-            If ``nbr_topo_alpha_f < nbr_topo_alpha_0``, the schedule
-            decays (less CONN influence over time). If
-            ``nbr_topo_alpha_f > nbr_topo_alpha_0``, the schedule
-            increases (more CONN influence over time).
-        compute_dr_metrics : bool, default False
-            Whether to compute dimensionality reduction quality metrics at
-            each snapshot during :meth:`fit`. When True, each entry in
-            ``learn_history_`` will contain a ``'dr_metrics'`` key holding
-            a :class:`~gtsom.dr_metrics.DRMetricsResult` with the following
-            fields:
-
-            - ``Q_local``, ``Q_global``, ``Q_AUC``, ``LCMC_AUC``,
-              ``Trust_AUC`` — co-ranking family metrics (require
-              ``pyDRMetrics``; see note below).
-            - ``CONN_WAFL``, ``CONN_WAFL_SE`` — embedding folding metric
-              over the CONN graph (always computed; requires only numpy/scipy).
-
-            When False (default), ``'dr_metrics'`` is None in every snapshot
-            and ``pyDRMetrics`` is never imported.
-
-            .. note::
-                ``pyDRMetrics`` is not on PyPI and must be installed manually.
-                If it is not installed, co-ranking metrics will be None but
-                CONN_WAFL will still be computed. See
-                https://github.com/zhangys11/pyDRMetrics for installation.
-
-        Raises
-        ------
-        ValueError
-            If neither or both of ``tau`` and ``halflife_epochs`` are
-            supplied, if ``anneal`` is not recognised, or if either
-            ``nbr_topo_alpha_0`` or ``nbr_topo_alpha_f`` is not in [0, 1].
-
-        Examples
-        --------
-        >>> som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50)
-        >>> som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50, n_jobs=4)
-        >>> # Fixed blending weight (no annealing):
-        >>> som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50,
-        ...             nbr_topo_alpha_0=0.6)
-        >>> # Annealing from pure lattice toward CONN-dominated:
-        >>> som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50,
-        ...             nbr_topo_alpha_0=1.0, nbr_topo_alpha_f=0.3)
-        >>> # Enable DR metrics tracking:
-        >>> som.compile(rho_0=5.0, rho_f=0.3, halflife_epochs=50,
-        ...             compute_dr_metrics=True)
-        """
-        if anneal not in ('exponential',):
-            raise ValueError(
-                f"anneal must be 'exponential', got {anneal!r}. "
-                f"Additional schedules may be added in future."
-            )
-        if tau is None and halflife_epochs is None:
-            raise ValueError(
-                "Exactly one of tau or halflife_epochs must be supplied."
-            )
-        if tau is not None and halflife_epochs is not None:
-            raise ValueError(
-                "Supply either tau or halflife_epochs, not both."
-            )
-
-        # Resolve alpha_f: default to alpha_0 for a flat (non-annealing) schedule
-        alpha_f = nbr_topo_alpha_f if nbr_topo_alpha_f is not None else nbr_topo_alpha_0
-
-        if not (0.0 <= nbr_topo_alpha_0 <= 1.0):
-            raise ValueError(
-                f"nbr_topo_alpha_0 must be in [0, 1], got {nbr_topo_alpha_0}."
-            )
-        if not (0.0 <= alpha_f <= 1.0):
-            raise ValueError(
-                f"nbr_topo_alpha_f must be in [0, 1], got {alpha_f}."
-            )
-
-        if anneal == 'exponential':
-            if tau is not None:
-                self.rho_schedule = ExponentialAnneal(
-                    initial=rho_0, final=rho_f, tau=tau
-                )
-                self.alpha_schedule = ExponentialAnneal(
-                    initial=nbr_topo_alpha_0, final=alpha_f, tau=tau
-                )
-            else:
-                self.rho_schedule = ExponentialAnneal.from_halflife(
-                    initial=rho_0, final=rho_f, halflife_epochs=halflife_epochs
-                )
-                self.alpha_schedule = ExponentialAnneal.from_halflife(
-                    initial=nbr_topo_alpha_0, final=alpha_f,
-                    halflife_epochs=halflife_epochs
-                )
-
-        # Resolve and store thread count
-        if not PARALLEL and n_jobs is not None and n_jobs != 1:
-            import warnings
-            warnings.warn(
-                f"n_jobs={n_jobs} ignored: numba is not installed. "
-                "Install numba for parallel prototype updates.",
-                UserWarning, stacklevel=2,
-            )
-        self.n_jobs = resolve_n_jobs(n_jobs)
-        self.compute_dr_metrics = bool(compute_dr_metrics)
-
-        # Backfill DR metrics into the age-0 snapshot if it exists and was
-        # taken before compile() was called (i.e. at construction time).
-        # This ensures learn_history_[0] has a complete baseline entry,
-        # including DR metrics, so training progress can be tracked from
-        # the very start.
-        if self.compute_dr_metrics and self.learn_history_:
-            if self.learn_history_[0]['dr_metrics'] is None:
-                self.learn_history_[0]['dr_metrics'] = self._snapshot_dr_metrics()
+        self._init_architecture(X, W, embed, labels)
+        return self
 
     # ------------------------------------------------------------------
     # Training
@@ -674,16 +565,16 @@ class GTSOM:
         """
         Fit the GTSOM to data X using batch SOM learning.
 
-        :meth:`compile` must be called before :meth:`fit`. The rho
-        annealing schedule is owned by ``self.rho_schedule`` and
-        advances based on ``self.age``, so successive calls to
-        ``fit()`` continue from where the previous call left off.
+        :meth:`from_grid` or :meth:`from_data` must be called before
+        :meth:`fit`. The rho annealing schedule advances based on
+        ``self.age``, so successive calls to :meth:`fit` continue from
+        where the previous call left off.
 
         Parameters
         ----------
         X : array-like, shape (N, d)
-            Training data. Should be the same dataset passed to the
-            classmethod used to construct this instance.
+            Training data. Should be the same dataset passed to
+            :meth:`from_grid` or :meth:`from_data`.
         n_epochs : int
             Number of training epochs to run in this call.
         labels : array-like, shape (N,), default None
@@ -692,41 +583,32 @@ class GTSOM:
             each epoch and stored on ``self.recaller``.
         verbose : bool, default True
             If True, print a formatted table of training metrics after
-            each epoch. The table header is printed at the start of each
-            ``fit()`` call and the separator is reprinted every 10 epochs
-            for readability in long terminal runs. VQRecaller output is
-            always suppressed regardless of this flag.
+            each epoch.
         plot_every : int, default 5
-            Capture a SOM plot into ``self.learn_history_`` every this many
-            epochs. Set to 0 to disable in-training plotting entirely.
-            Plots are Figure objects stored in memory; nothing is displayed
-            unless the caller explicitly calls ``plt.show()`` or
-            ``fig.savefig()``.
+            Capture a SOM plot into ``self.learn_history_`` every this
+            many epochs. Set to 0 to disable in-training plotting.
 
         Raises
         ------
         RuntimeError
-            If :meth:`compile` has not been called.
+            If :meth:`from_grid` or :meth:`from_data` has not been called.
 
         Notes
         -----
-        GTSOM does not perform any internal scaling of X. It is the
-        caller's responsibility to whiten, standardise, or otherwise
-        preprocess X before calling fit.
+        GTSOM does not perform any internal scaling of X.
         """
-        if self.rho_schedule is None:
+        if self.W is None:
             raise RuntimeError(
-                "compile() must be called before fit(). "
-                "Call som.compile(rho_0=..., rho_f=..., halflife_epochs=...) first."
+                "Architecture not initialised. "
+                "Call from_grid() or from_data() before fit()."
             )
 
         X = np.asarray(X)
         if self._validator is not None:
             self._validator.check(X, context="fit")
 
-        # Column widths are fixed; epoch width scales with total epochs run
-        _HDR  = f"{'Epoch':>7}   {'rho':>6}   {'MQE':>8}   {'delBMU':>7}"
-        _SEP  = f"{'-----':>7}   {'------':>6}   {'--------':>8}   {'-------':>7}"
+        _HDR = f"{'Epoch':>7}   {'rho':>6}   {'MQE':>8}   {'delBMU':>7}"
+        _SEP = f"{'-----':>7}   {'------':>6}   {'--------':>8}   {'-------':>7}"
 
         if verbose:
             print(_HDR)
@@ -754,7 +636,6 @@ class GTSOM:
                     f"{self.age:>7d}   {rho:>6.4f}   "
                     f"{snap['mqe']:>8.4f}   {snap['delBMU']:>7.4f}"
                 )
-                # Reprint separator every 10 rows for long-run readability
                 if (local_epoch + 1) % 10 == 0:
                     print(_SEP)
 
@@ -763,7 +644,6 @@ class GTSOM:
 
         self.train_time += time.perf_counter() - _t0
 
-        # Restore previous thread count
         if PARALLEL:
             set_num_threads(_prev_threads)
 
@@ -778,20 +658,23 @@ class GTSOM:
         Returns
         -------
         coords : np.ndarray, shape (N, embed.dim)
-            Output coordinates of the BMU for each data point.
 
         Raises
         ------
         RuntimeError
             If the model has not been fitted yet.
         """
+        if self.W is None:
+            raise RuntimeError(
+                "Architecture not initialised. "
+                "Call from_grid() or from_data() before transform()."
+            )
         if self.age == 0:
             raise RuntimeError(
                 "transform() called before fit(). "
                 "Call fit() first to train the model."
             )
         X = np.asarray(X)
-        # Recall against current W to get fresh BMU assignments for X
         self.recaller.recall(X=X, W=self.W)
         return self.embed.coords[self.recaller.BMU[:, 0]]
 
@@ -889,11 +772,19 @@ class GTSOM:
 
         Raises
         ------
+        RuntimeError
+            If :meth:`from_grid` or :meth:`from_data` has not been called.
         NotImplementedError
             If ``embed.dim != 2``.
         ValueError
             If ``color_by='labels'`` but no labels have been provided.
         """
+        if self.W is None:
+            raise RuntimeError(
+                "Architecture not initialised. "
+                "Call from_grid() or from_data() before plot()."
+            )
+
         from .vis_tools import vis_embedding_discrete, vis_embedding_continuous
 
         if self.embed.dim != 2:
@@ -923,7 +814,6 @@ class GTSOM:
         rf       = self.recaller.RFSize.astype(float)
         use_log  = (rf.max() / (np.median(rf) + 1e-8)) > rf_size_log_threshold
         rf_trans = 'log10' if use_log else 'identity'
-        # Normalise raw RFSize to [0, 1] so point_size_wts is always in range
         rf_norm  = (rf - rf.min()) / (rf.max() - rf.min() + 1e-8)
 
         # ------------------------------------------------------------------
@@ -981,12 +871,9 @@ class GTSOM:
         # Dispatch to discrete or continuous
         # ------------------------------------------------------------------
         if color_by == 'labels':
-            # vis_embedding_discrete coerces all labels to str internally,
-            # so WL can be passed as-is regardless of label type. None
-            # entries are silently dropped by the function.
             return vis_embedding_discrete(
-                z             = self.recaller.WL,
-                legend_title  = 'Label',
+                z            = self.recaller.WL,
+                legend_title = 'Label',
                 **shared,
             )
         else:
@@ -997,15 +884,100 @@ class GTSOM:
             )
             legend_title = 'MQE' if color_by == 'mqe' else 'RF Size'
             return vis_embedding_continuous(
-                z             = z,
-                cmap          = cmap,
-                legend_title  = legend_title,
+                z            = z,
+                cmap         = cmap,
+                legend_title = legend_title,
                 **shared,
             )
 
     # ------------------------------------------------------------------
+    # Coordinate update
+    # ------------------------------------------------------------------
+
+    def update_embedding(self, coords):
+        """
+        Replace the output-space embedding coordinates and refresh the
+        neighbourhood weight matrix atomically.
+
+        Calls ``self.embed.update_coords(coords)`` to validate the new
+        positions, rebuild adjacency, and recompute geodesic distances.
+        Then immediately recomputes ``self.nbr_W`` from the updated
+        topology using the current annealing bandwidth
+        ``self.rho_schedule(self.age)``, so that the next :meth:`fit`
+        call starts with a consistent neighbourhood structure.
+
+        Parameters
+        ----------
+        coords : array-like, shape (M, dim)
+            New low-dimensional prototype positions.
+
+        Returns
+        -------
+        self : GTSOM
+
+        Raises
+        ------
+        RuntimeError
+            If :meth:`from_grid` or :meth:`from_data` has not been called.
+        ValueError
+            Propagated from :meth:`Embedding.update_coords` if the shape
+            of ``coords`` does not match the current embedding shape.
+        """
+        if self.W is None:
+            raise RuntimeError(
+                "Architecture not initialised. "
+                "Call from_grid() or from_data() before update_embedding()."
+            )
+        self.embed.update_coords(coords)
+        self._compute_neighborhood(
+            self.rho_schedule(self.age),
+            self.alpha_schedule(self.age),
+        )
+        return self
+
+    # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    def _init_architecture(self, X, W, embed, labels):
+        """
+        Wipe all architecture state and reinitialise from (X, W, embed).
+
+        Called at the end of both :meth:`from_grid` and :meth:`from_data`
+        after the topology and prototype matrix have been assembled. Handles
+        the full "clean slate" reset — clearing training history, resetting
+        age, constructing fresh recaller and kernel instances — then runs
+        the initial recall and takes the age-0 snapshot (including the
+        initial figure and, if ``self.compute_dr_metrics`` is True, the
+        baseline DR metrics).
+
+        Parameters
+        ----------
+        X : np.ndarray, shape (N, d)
+        W : np.ndarray, shape (M, d)
+        embed : Embedding
+        labels : array-like or None
+        """
+        # Wipe all mutable architecture state
+        self.W          = W
+        self.embed      = embed
+        self.recaller   = VQRecaller(p=2, max_bmu=2, verbose=False)
+        self.kernel     = NeighborKernel(h_min=self.nbr_influence_min)
+        self._validator = DataValidator(X)
+        self.prevBMU    = np.full(X.shape[0], -1, dtype=int)
+        self.W0         = W.copy()
+        self.coords0    = embed.coords.copy()
+        self.nbr_W      = None
+
+        # Wipe training state
+        self.age         = 0
+        self.train_time  = 0.0
+        self.learn_history_ = []
+
+        # Initial recall then complete age-0 snapshot (including DR metrics
+        # and figure, since all learning parameters are already set)
+        self._recall(X, labels=labels)
+        self._snapshot(include_fig=True)
 
     def _recall(self, X, labels=None):
         """
@@ -1015,14 +987,11 @@ class GTSOM:
         computes BMU, QE, receptive fields (RF), and the co-adjacency
         matrix (CADJ/CONN). If labels are provided, also computes
         prototype-level label summaries (WL, WL_Dist, WL_Purity).
-        Should be called after any change to ``self.W``.
 
         Parameters
         ----------
         X : np.ndarray, shape (N, d)
         labels : array-like, shape (N,), default None
-            Optional observation labels passed through to
-            ``recaller.recall_labels()``.
         """
         self.recaller.recall(X=X, W=self.W, labels=labels)
 
@@ -1030,16 +999,13 @@ class GTSOM:
         """
         Compute per-prototype mean quantization error from the current recall.
 
-        Averages ``recaller.QE[:, 0]`` over each prototype's receptive
-        field using ``np.bincount`` for efficiency. Prototypes with empty
-        RFs receive ``np.nan``.
-
         Returns
         -------
         W_mqe : np.ndarray, shape (M,)
+            Per-prototype MQE; np.nan for empty receptive fields.
         """
-        bmu    = self.recaller.BMU[:, 0]   # (N,) first BMU per datum
-        qe     = self.recaller.QE[:, 0]    # (N,) per-datum QE
+        bmu    = self.recaller.BMU[:, 0]
+        qe     = self.recaller.QE[:, 0]
         counts = np.bincount(bmu, minlength=self.M)
         sums   = np.bincount(bmu, weights=qe, minlength=self.M)
         W_mqe  = np.full(self.M, np.nan)
@@ -1059,36 +1025,24 @@ class GTSOM:
            so that :meth:`plot` can read from ``learn_history_[-1]``.
         3. Overwrite ``self.prevBMU`` with the current BMU assignments.
         4. Optionally compute DR metrics and store in the snapshot.
-        5. Optionally call :meth:`plot` and store the Figure.
+        5. Optionally call :meth:`plot` and store the figure.
 
-        Returns nothing; callers must not wrap this call in ``append()``.
-
-        Called by classmethods (after initialisation) and by :meth:`fit`
-        after each epoch.
+        Because all learning parameters (including ``compute_dr_metrics``)
+        are set in ``__init__`` before any architecture method is called,
+        this method produces a complete snapshot on every call — including
+        the age-0 call from :meth:`_init_architecture`. No backfill is
+        needed.
 
         Parameters
         ----------
         include_fig : bool, default False
-            If True, call :meth:`plot` and store the Figure under the
-            'fig' key. If False, 'fig' is None.
-
-        Each snapshot dict contains:
-            'age'        : int               — self.age at snapshot time
-            'mqe'        : float             — global MQE over all data
-            'W_mqe'      : ndarray (M,)      — per-prototype MQE, nan for
-                                               empty RFs
-            'delBMU'     : float             — proportion of data whose BMU
-                                               changed since the previous
-                                               epoch; 1.0 at age=0
-            'dr_metrics' : DRMetricsResult   — DR quality metrics, or None
-                                               if compute_dr_metrics=False
-            'fig'        : ggplot or None    — plot captured this epoch
+            If True, call :meth:`plot` and store the figure under 'fig'.
         """
-        # Step 1: compute delBMU before prevBMU is overwritten
+        # Step 1
         current_bmu = self.recaller.BMU[:, 0]
         delBMU = float((current_bmu != self.prevBMU).mean())
 
-        # Step 2: append snapshot (plot() can now read W_mqe and delBMU)
+        # Step 2
         self.learn_history_.append({
             'age'        : self.age,
             'mqe'        : float(np.sqrt(self.recaller.QE[:, 0].mean())),
@@ -1098,31 +1052,20 @@ class GTSOM:
             'fig'        : None,
         })
 
-        # Step 3: overwrite prevBMU for the next epoch's delBMU computation
+        # Step 3
         self.prevBMU = current_bmu.copy()
 
-        # Step 4: optionally compute DR metrics
+        # Step 4
         if self.compute_dr_metrics:
             self.learn_history_[-1]['dr_metrics'] = self._snapshot_dr_metrics()
 
-        # Step 5: optionally capture plot (reads learn_history_[-1])
+        # Step 5
         if include_fig:
             self.learn_history_[-1]['fig'] = self.plot(color_by='auto')
 
     def _snapshot_dr_metrics(self):
         """
         Compute DR quality metrics for the current prototype / embedding state.
-
-        Calls :func:`~gtsom.dr_metrics.compute_dr_metrics` with the current
-        prototype matrix (``self.W``), embedding coordinates
-        (``self.embed.coords``), geodesic distance matrix
-        (``self.embed.dist``), and CONN matrix (``self.recaller.CONN``).
-
-        The ``pyDRMetrics`` import is deferred to here so that a missing
-        installation does not affect normal GTSOM usage. If ``pyDRMetrics``
-        is not installed, co-ranking metrics (Q_local, Q_global, Q_AUC,
-        LCMC_AUC, Trust_AUC) will be None; CONN_WAFL and CONN_WAFL_SE are
-        always computed since they require only numpy/scipy.
 
         Returns
         -------
@@ -1138,7 +1081,6 @@ class GTSOM:
                 compute_coranking   = True,
             )
         except ImportError:
-            # pyDRMetrics not installed — fall back to CONN_WAFL only
             return _compute_dr_metrics(
                 X                   = self.W,
                 Y                   = self.embed.coords,
@@ -1151,40 +1093,23 @@ class GTSOM:
         """
         Compute neighbourhood activation weights for the current epoch.
 
-        When ``alpha == 1.0``, this reduces to the standard SOM rule:
-        neighbourhood weights are derived solely from geodesic hop-count
-        distances on the lattice embedding::
+        When ``alpha == 1.0``, pure lattice-based neighbourhood (standard SOM)::
 
             nbr_W = H_lat   where   H_lat[i, j] = exp(-D_lat[i, j] / rho)
 
-        When ``alpha < 1.0``, a hybrid update rule is used that blends
-        lattice-based and CONN-based neighbourhood influences::
+        When ``alpha < 1.0``, a hybrid blend of lattice and CONN-graph
+        neighbourhood is used::
 
             nbr_W = alpha * H_lat + (1 - alpha) * H_CONN
 
-        ``H_CONN[i, j] = exp(-D_CONN[i, j] / rho)``, where ``D_CONN`` is
-        the matrix of shortest hop-count paths on the binary CONN graph
-        (computed from ``self.recaller.CONN`` with edge weights ignored).
-        Prototype pairs that are disconnected in CONN have
-        ``D_CONN[i, j] = inf``, so ``H_CONN[i, j] = 0`` for those pairs
-        — they receive only the dampened lattice signal
-        ``alpha * H_lat[i, j]``.
-
-        Both ``H_lat`` and ``H_CONN`` use the same bandwidth ``rho`` and
-        the same exponential decay kernel, so their values lie in [0, 1]
-        and the linear blend is well-posed.
-
-        The result is stored in ``self.nbr_W`` as a sparse CSR matrix of
-        shape (M, M) and consumed by :meth:`_update_prototypes`.
+        The result is stored in ``self.nbr_W``.
 
         Parameters
         ----------
-        rho : float or np.ndarray, shape (M,)
-            Neighbourhood bandwidth; scalar or per-prototype array.
+        rho : float
+            Neighbourhood bandwidth.
         alpha : float
-            Current topology-blending weight, evaluated from
-            ``self.alpha_schedule`` at the current epoch. When 1.0,
-            only ``H_lat`` is computed (no CONN overhead).
+            Current topology-blending weight.
         """
         H_lat = self.kernel.compute(self.embed.dist, rho)
         if alpha < 1.0 and self.recaller.CONN is not None:
@@ -1196,79 +1121,9 @@ class GTSOM:
         else:
             self.nbr_W = H_lat
 
-    def update_embedding(self, coords):
-        """
-        Replace the output-space embedding coordinates and refresh the
-        neighbourhood weight matrix atomically.
-
-        Calls ``self.embed.update_coords(coords)`` to validate the new
-        positions, rebuild adjacency, and recompute geodesic distances.
-        Then immediately recomputes ``self.nbr_W`` from the updated
-        topology using the current annealing bandwidth
-        ``self.rho_schedule(self.age)``, so that the next :meth:`fit`
-        call starts with a consistent neighbourhood structure.
-
-        This method is the correct way to inject an externally computed
-        coordinate update (e.g. from a tSNE or UMAP step) into a fitted
-        GTSOM without leaving ``nbr_W`` stale.
-
-        Parameters
-        ----------
-        coords : array-like, shape (M, dim)
-            New low-dimensional prototype positions. Must match the
-            current embedding shape ``(M, dim)`` exactly.
-
-        Returns
-        -------
-        self : GTSOM
-            Returns self for method chaining.
-
-        Raises
-        ------
-        RuntimeError
-            If :meth:`compile` has not been called yet (``self.rho_schedule``
-            is None). The neighbourhood weight matrix cannot be recomputed
-            without a valid annealing schedule.
-        ValueError
-            Propagated from :meth:`Embedding.update_coords` if the shape
-            of ``coords`` does not match the current embedding shape.
-        """
-        if self.rho_schedule is None:
-            raise RuntimeError(
-                "compile() must be called before update_embedding(). "
-                "Call som.compile(rho_0=..., rho_f=..., halflife_epochs=...) "
-                "first so that a valid rho_schedule is available for "
-                "recomputing the neighbourhood weight matrix."
-            )
-        self.embed.update_coords(coords)
-        self._compute_neighborhood(
-            self.rho_schedule(self.age),
-            self.alpha_schedule(self.age),
-        )
-        return self
-
     def _update_prototypes(self, X):
         """
         Perform one batch SOM prototype update step.
-
-        Delegates to ``update_prototypes_kernel`` from ``parallel.py``,
-        which selects either the numba parallel backend or the numpy
-        serial fallback depending on whether numba is installed.
-
-        In both cases the update rule is identical: for each datum i
-        with BMU b, scatter its contribution through b's neighbourhood::
-
-            sum_HX[j] += nbr_W[b, j] * X[i]
-            sum_H[j]  += nbr_W[b, j]
-
-        Then update prototypes as::
-
-            W[j] = sum_HX[j] / sum_H[j]   (only where sum_H[j] > 0)
-
-        Prototypes with zero support are left unchanged.
-
-        See ``parallel.py`` for full implementation notes on the
-        parallel scatter-accumulate and thread-local accumulator design.
 
         Parameters
         ----------
@@ -1286,16 +1141,20 @@ class GTSOM:
     # ------------------------------------------------------------------
 
     def __repr__(self):
-        compiled = self.rho_schedule is not None
-        fitted   = self.age > 0
-        n_snaps  = len(self.learn_history_)
-        backend  = 'numba' if PARALLEL else 'numpy'
+        built   = self.W is not None
+        fitted  = self.age > 0
+        n_snaps = len(self.learn_history_)
+        backend = 'numba' if PARALLEL else 'numpy'
+        if built:
+            arch = f"M={self.M}, d={self.d}, embed_dim={self.embed.dim}, "
+        else:
+            arch = "not built, "
         return (
-            f"GTSOM(M={self.M}, d={self.d}, "
-            f"embed_dim={self.embed.dim}, "
-            f"compiled={compiled}, fitted={fitted}, "
+            f"GTSOM({arch}"
+            f"fitted={fitted}, "
             f"age={self.age}, snapshots={n_snaps}, "
             f"backend={backend!r}, n_jobs={self.n_jobs}, "
+            f"nbr_influence_min={self.nbr_influence_min}, "
             f"alpha_schedule={self.alpha_schedule}, "
             f"compute_dr_metrics={self.compute_dr_metrics}, "
             f"train_time={self.train_time:.3f}s)"

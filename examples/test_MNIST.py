@@ -4,8 +4,8 @@ test_MNIST.py — GTSOM showcase on MNIST digits
 Workflow:
   1. Load MNIST test set (N=10,000, d=784), scale to [0,1]
   2. PCA reduction to 50 components
-  3. Initialise 20x20 hex GTSOM, W_init='pca'
-  4. Compile and fit (100 epochs, rho_0=10, rho_f=1, n_jobs=-1)
+  3. Initialise 20x20 hex GTSOM, W_init='random'
+  4. Fit (200 epochs, rho_0=10, rho_f=1, halflife_epochs=100, n_jobs=-1)
   5. Plot learning curves, SOM lattice (all three color_by modes),
      and a sample of prototype images back-projected to pixel space
 
@@ -104,13 +104,21 @@ savefig(fig_scree, 'mnist_pca_scree.png')
 section("3. Initialising GTSOM (20x20 hex grid)")
 
 t0 = time.perf_counter()
-som = GTSOM.from_grid(
+som = GTSOM(
+    rho_0=10.0,
+    rho_f=1.0,
+    halflife_epochs=100,
+    n_jobs=-1,
+    nbr_topo_alpha_0=1.0,
+    nbr_topo_alpha_f=1.0,
+    random_state=SEED,
+    compute_dr_metrics=True,
+)
+som.from_grid(
     X,
     shape=SHAPE,
     coord_init='hex',
-    #W_init='pca',
-    W_init = 'random', 
-    random_state=SEED,
+    W_init='random',
     labels=y,
 )
 print(f"  Init done in {time.perf_counter() - t0:.1f}s")
@@ -126,18 +134,10 @@ fig_init = som.plot(
 savegg(fig_init, 'mnist_som_init.png')
 
 # ------------------------------------------------------------------
-# 4. Compile and fit
+# 4. Fit
 # ------------------------------------------------------------------
-section("4. Compile and fit (100 epochs)")
+section("4. Fit (200 epochs)")
 
-som.compile(
-    rho_0=10.0,
-    rho_f=1.0,
-    halflife_epochs=100,
-    n_jobs=-1,
-    nbr_topo_alpha_0=0.1, 
-    nbr_topo_alpha_f=0.9
-)
 print(f"  Schedule: {som.rho_schedule}")
 print(f"  rho at epoch  0: {som.rho_schedule(0):.4f}")
 print(f"  rho at epoch 50: {som.rho_schedule(50):.4f}")

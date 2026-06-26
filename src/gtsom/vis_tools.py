@@ -24,7 +24,7 @@ from plotnine import (
     scale_y_continuous, scale_y_reverse,
     labs, guides, guide_legend, guide_colorbar,
     theme_minimal, theme,
-    element_text, element_line, element_blank,
+    element_text, element_line, element_blank, element_rect,
 )
 
 
@@ -72,7 +72,9 @@ def theme_minimal_bold(text_color="black", **kwargs):
             axis_text    = element_text(family="DejaVu Sans", color=text_color),
             legend_title = element_text(family="DejaVu Sans", weight="bold", color=text_color),
             legend_text  = element_text(family="DejaVu Sans", color=text_color),
-            panel_border = element_blank(),
+            panel_border      = element_blank(),
+            plot_background   = element_rect(fill="white", color=None),
+            panel_background  = element_rect(fill="white", color=None),
             **kwargs,
         )
     )
