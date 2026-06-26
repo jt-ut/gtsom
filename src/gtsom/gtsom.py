@@ -137,6 +137,121 @@ def _init_W_kmeans(X, M, random_state):
 
 
 # ---------------------------------------------------------------------------
+# Neighbourhood kernel helpers
+# ---------------------------------------------------------------------------
+
+def _cadj_zelnik_kernel(W, CADJ, CADJ_nhbs, rho, nbr_influence_min):
+    """
+    Self-tuning neighbourhood kernel based on CADJ-weighted local radii.
+
+    Computes a symmetric M×M similarity matrix where the similarity between
+    prototypes i and j is::
+
+        H[i,j] = exp(-dist²(W[i], W[j]) / (sigma_i * sigma_j * rho))
+
+    where ``sigma_i`` is the CADJ-weighted mean Euclidean distance from
+    prototype i to its CADJ neighbours — a locally adaptive scale reflecting
+    the typical size of i's data-manifold neighbourhood in feature space.
+
+    CADJ (rather than CONN) is used for sigma computation deliberately:
+    ``CADJ[i,j]`` counts data points for which i was the 1st BMU and j the
+    2nd, giving a directed, i-centric view of i's local neighbourhood. This
+    asymmetry is desirable — ``sigma_i`` should reflect i's own outward reach,
+    not a symmetrised average. The symmetry of the final kernel is recovered
+    via the geometric mean ``sigma_i * sigma_j`` in the denominator.
+
+    The quantity ``dist²(i,j) / (sigma_i * sigma_j)`` is dimensionless and
+    can be interpreted as a locally-normalised distance: j is approximately
+    "one hop" from i when ``dist(i,j) ≈ sqrt(sigma_i * sigma_j)``, the
+    geometric mean of the two local scales. Dividing further by ``rho``
+    controls how many such normalised hops exert meaningful neighbourhood
+    influence, analogously to rho's role in the lattice kernel.
+
+    Unlike ``'CONN'`` mode (which uses CONN as a graph and computes shortest-
+    path hop counts), ``'CONN_STK'`` uses CADJ only to compute local radii
+    sigma_i, then applies the self-tuning kernel to *full* Euclidean prototype
+    distances. Every prototype pair receives a nonzero similarity; sparsity
+    is imposed only by thresholding at ``nbr_influence_min``.
+
+    Parameters
+    ----------
+    W : np.ndarray, shape (M, d)
+        Current prototype matrix.
+    CADJ : scipy.sparse matrix, shape (M, M)
+        Asymmetric co-adjacency matrix. CADJ[i,j] counts data points for
+        which i was the 1st BMU and j the 2nd. Used to weight the local
+        radius computation for each prototype.
+    CADJ_nhbs : list of list of int
+        CADJ_nhbs[i] = column indices of nonzero entries in row i.
+        Precomputed from the recaller. Prototypes with no CADJ neighbours
+        (empty RFs throughout training) receive a fallback sigma equal to
+        the median sigma of well-connected prototypes.
+    rho : float
+        Current neighbourhood bandwidth (annealed). Acts as a multiplier
+        on the local radius unit: larger rho broadens the neighbourhood
+        across more CADJ-radius units.
+    nbr_influence_min : float
+        Entries below this value are set to zero, producing a sparse output
+        consistent with ``NeighborKernel`` behaviour.
+
+    Returns
+    -------
+    H : scipy.sparse.csr_matrix, shape (M, M)
+        Symmetric neighbourhood weight matrix with values in (0, 1].
+    """
+    from scipy.spatial.distance import cdist
+    from scipy.sparse import csr_matrix as _csr
+
+    M = W.shape[0]
+
+    # ------------------------------------------------------------------
+    # Step 1: compute sigma_i — CADJ-weighted mean Euclidean distance
+    #         from prototype i to its CADJ neighbours.
+    #         Uses CADJ (directed) so sigma_i reflects i's own outward
+    #         neighbourhood reach, not a symmetrised average.
+    # ------------------------------------------------------------------
+    sigma = np.empty(M, dtype=np.float32)
+    for i in range(M):
+        nhbs = CADJ_nhbs[i]
+        if len(nhbs) == 0:
+            sigma[i] = -1.0    # flagged for fallback
+            continue
+        dists   = np.linalg.norm(W[nhbs] - W[i], axis=1)
+        weights = np.asarray(CADJ[i, nhbs].todense()).ravel().astype(np.float32)
+        wsum    = weights.sum()
+        sigma[i] = float(np.dot(weights, dists) / wsum) if wsum > 0 else -1.0
+
+    # Prototypes with no CADJ neighbours get the median sigma of well-
+    # connected prototypes, falling back to 1.0 if all are degenerate.
+    valid    = sigma > 0
+    fallback = float(np.median(sigma[valid])) if valid.any() else 1.0
+    sigma[~valid] = fallback
+
+    # ------------------------------------------------------------------
+    # Step 2: full M×M squared Euclidean distance matrix
+    # ------------------------------------------------------------------
+    D2 = cdist(W, W, metric='sqeuclidean')    # (M, M)
+
+    # ------------------------------------------------------------------
+    # Step 3: self-tuning kernel.
+    #         Row-then-column broadcast division avoids constructing the
+    #         full sigma_outer matrix:
+    #           D2 / sigma[:, None]  →  D2[i,j] / sigma_i   (row-wise)
+    #           / sigma[None, :]     →  / sigma_j            (col-wise)
+    #           / rho                →  scale by bandwidth
+    #         Result is exp(-dist²_ij / (sigma_i * sigma_j * rho)).
+    # ------------------------------------------------------------------
+    H = np.exp(-D2 / sigma[:, None] / sigma[None, :] / rho).astype(np.float32)
+
+    # ------------------------------------------------------------------
+    # Step 4: threshold, fix diagonal, return sparse CSR
+    # ------------------------------------------------------------------
+    H[H < nbr_influence_min] = 0.0
+    np.fill_diagonal(H, 1.0)
+    return _csr(H)
+
+
+# ---------------------------------------------------------------------------
 # Main class
 # ---------------------------------------------------------------------------
 
@@ -184,6 +299,24 @@ class GTSOM:
         Neighbourhood kernel activation floor. Kernel weights below this
         value are zeroed. Shared across all architecture configurations built
         on this instance.
+    proto_topo : {'CONN', 'CONN_STK'}, default 'CONN'
+        Input-space (prototype) topology used to compute the high-dimensional
+        neighbourhood signal when ``nbr_topo_alpha < 1.0``. Has no effect
+        when ``nbr_topo_alpha_0 == nbr_topo_alpha_f == 1.0``.
+
+        ``'CONN'``
+            CONN graph geodesics. The CONN matrix is treated as an
+            unweighted graph; shortest-path hop counts are computed and
+            fed through the standard exponential kernel. Purely
+            topological — ignores Euclidean distances between prototypes.
+        ``'CONN_STK'``
+            CONN self-tuning kernel. CONN weights are used to compute a
+            locally adaptive radius ``sigma_i`` (CONN-weighted mean
+            Euclidean distance from i to its CONN neighbours) for each
+            prototype. The full M×M Euclidean distance matrix is then
+            transformed via ``exp(-dist²(i,j) / (sigma_i * sigma_j * rho))``,
+            where ``dist²(i,j) / (sigma_i * sigma_j)`` is a dimensionless
+            locally-normalised distance analogous to a hop count.
     random_state : int or None, default None
         Seed for all random operations.
 
@@ -198,7 +331,8 @@ class GTSOM:
     ValueError
         If neither or both of ``tau`` and ``halflife_epochs`` are supplied,
         if ``anneal`` is not recognised, if either alpha parameter is
-        outside [0, 1], or if ``nbr_influence_min`` is not in (0, 1).
+        outside [0, 1], if ``nbr_influence_min`` is not in (0, 1), or if
+        ``proto_topo`` is not recognised.
     """
 
     def __init__(
@@ -211,6 +345,7 @@ class GTSOM:
         n_jobs=None,
         nbr_topo_alpha_0=1.0,
         nbr_topo_alpha_f=None,
+        proto_topo='CONN',
         compute_dr_metrics=False,
         nbr_influence_min=0.01,
         random_state=None,
@@ -245,6 +380,10 @@ class GTSOM:
             raise ValueError(
                 f"nbr_influence_min must be in (0, 1), got {nbr_influence_min}."
             )
+        if proto_topo not in ('CONN', 'CONN_STK'):
+            raise ValueError(
+                f"proto_topo must be 'CONN' or 'CONN_STK', got {proto_topo!r}."
+            )
 
         # ------------------------------------------------------------------
         # Build annealing schedules
@@ -269,6 +408,7 @@ class GTSOM:
         # Store learning configuration
         # ------------------------------------------------------------------
         self.nbr_influence_min = nbr_influence_min
+        self.proto_topo         = proto_topo
         self.random_state       = random_state
         self.compute_dr_metrics = bool(compute_dr_metrics)
 
@@ -1118,27 +1258,54 @@ class GTSOM:
 
             nbr_W = H_lat   where   H_lat[i, j] = exp(-D_lat[i, j] / rho)
 
-        When ``alpha < 1.0``, a hybrid blend of lattice and CONN-graph
-        neighbourhood is used::
+        When ``alpha < 1.0``, a hybrid blend of the lattice neighbourhood and
+        an input-space (prototype) neighbourhood is used::
 
-            nbr_W = alpha * H_lat + (1 - alpha) * H_CONN
+            nbr_W = alpha * H_lat + (1 - alpha) * H_proto
+
+        The form of ``H_proto`` is controlled by ``self.proto_topo``:
+
+        ``'CONN'``
+            ``H_proto = H_CONN``: shortest-path hop counts on the unweighted
+            CONN graph, fed through the standard exponential kernel.
+            ``H_CONN[i,j] = exp(-D_CONN[i,j] / rho)``
+            where ``D_CONN[i,j]`` is the hop count on the CONN graph.
+
+        ``'CONN_STK'``
+            ``H_proto = H_STK``: CADJ self-tuning kernel. Uses CADJ-weighted
+            local radii ``sigma_i`` (CADJ-weighted mean Euclidean distance
+            from i to its CADJ neighbours) to compute a locally-normalised
+            Euclidean similarity.
+            ``H_STK[i,j] = exp(-dist²(W[i],W[j]) / (sigma_i * sigma_j * rho))``
 
         The result is stored in ``self.nbr_W``.
 
         Parameters
         ----------
         rho : float
-            Neighbourhood bandwidth.
+            Neighbourhood bandwidth (current annealed value).
         alpha : float
-            Current topology-blending weight.
+            Current topology-blending weight. When 1.0, only ``H_lat`` is
+            used and ``H_proto`` is not computed.
         """
         H_lat = self.kernel.compute(self.embed.dist, rho)
+
         if alpha < 1.0 and self.recaller.CONN is not None:
-            D_CONN = shortest_path(
-                self.recaller.CONN, method="D", directed=False, unweighted=True
-            ).astype(np.float32)
-            H_CONN = self.kernel.compute(D_CONN, rho)
-            self.nbr_W = alpha * H_lat + (1 - alpha) * H_CONN
+            if self.proto_topo == 'CONN':
+                D_CONN  = shortest_path(
+                    self.recaller.CONN, method="D",
+                    directed=False, unweighted=True,
+                ).astype(np.float32)
+                H_proto = self.kernel.compute(D_CONN, rho)
+            else:  # 'CONN_STK'
+                H_proto = _cadj_zelnik_kernel(
+                    W                 = self.W,
+                    CADJ              = self.recaller.CADJ,
+                    CADJ_nhbs         = self.recaller.CADJ_nhbs,
+                    rho               = rho,
+                    nbr_influence_min = self.nbr_influence_min,
+                )
+            self.nbr_W = alpha * H_lat + (1 - alpha) * H_proto
         else:
             self.nbr_W = H_lat
 
@@ -1176,6 +1343,7 @@ class GTSOM:
             f"age={self.age}, snapshots={n_snaps}, "
             f"backend={backend!r}, n_jobs={self.n_jobs}, "
             f"nbr_influence_min={self.nbr_influence_min}, "
+            f"proto_topo={self.proto_topo!r}, "
             f"alpha_schedule={self.alpha_schedule}, "
             f"compute_dr_metrics={self.compute_dr_metrics}, "
             f"train_time={self.train_time:.3f}s)"

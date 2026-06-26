@@ -109,16 +109,17 @@ som = GTSOM(
     rho_f=1.0,
     halflife_epochs=100,
     n_jobs=-1,
-    nbr_topo_alpha_0=1.0,
+    nbr_topo_alpha_0=0.5,
     nbr_topo_alpha_f=1.0,
     random_state=SEED,
     compute_dr_metrics=True,
+    proto_topo='CONN_STK',
 )
 som.from_grid(
     X,
     shape=SHAPE,
     coord_init='hex',
-    W_init='random',
+    W_init='pca',
     labels=y,
 )
 print(f"  Init done in {time.perf_counter() - t0:.1f}s")
