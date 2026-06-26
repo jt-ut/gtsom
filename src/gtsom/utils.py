@@ -161,6 +161,58 @@ def reduce_coords_le(W, coord_dim, random_state=None):
     return coords.astype(np.float32)
 
 
+def reduce_coords_random(M, coord_dim, random_state=None):
+    """
+    Generate M neuron coordinates sampled uniformly from the unit hypercube.
+
+    Produces a completely unstructured initial layout with no relationship to
+    the prototype vectors. Useful for exposition — starting from a worst-case
+    random state makes the organising effect of SOM training most visible.
+
+    Parameters
+    ----------
+    M : int
+        Number of prototypes (neurons).
+    coord_dim : int
+        Dimensionality of the output space (2 or 3).
+    random_state : int or None, default None
+
+    Returns
+    -------
+    coords : np.ndarray, shape (M, coord_dim), float32
+        Coordinates drawn uniformly from [0, 1)^coord_dim.
+    """
+    rng = np.random.default_rng(random_state)
+    return rng.random((M, coord_dim)).astype(np.float32)
+
+
+def reduce_coords_random_proj(W, coord_dim, random_state=None):
+    """
+    Reduce prototype matrix W to coord_dim dimensions via random projection.
+
+    Multiplies W by a random Gaussian matrix scaled by ``1 / sqrt(coord_dim)``
+    (Johnson-Lindenstrauss style). Preserves approximate pairwise distances in
+    expectation at zero computational cost — a structurally grounded starting
+    layout that is nonetheless random and requires no decomposition.
+
+    Parameters
+    ----------
+    W : np.ndarray, shape (M, d)
+        Prototype matrix.
+    coord_dim : int
+        Target dimensionality (2 or 3).
+    random_state : int or None, default None
+
+    Returns
+    -------
+    coords : np.ndarray, shape (M, coord_dim), float32
+    """
+    rng = np.random.default_rng(random_state)
+    d = W.shape[1]
+    R = rng.standard_normal((d, coord_dim)).astype(np.float32) / np.sqrt(coord_dim)
+    return (W.astype(np.float32) @ R)
+
+
 _ANNEAL_EPS = 1.0
 # Additive shift applied to initial and final before the exponential formula,
 # then subtracted from every output. This allows initial or final to be zero

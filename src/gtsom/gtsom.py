@@ -40,7 +40,7 @@ from scipy.sparse.csgraph import shortest_path
 
 from .embedding import Embedding
 from .kernel import NeighborKernel
-from .utils import ExponentialAnneal, DataValidator, reduce_coords_pca, reduce_coords_le
+from .utils import ExponentialAnneal, DataValidator, reduce_coords_pca, reduce_coords_le, reduce_coords_random, reduce_coords_random_proj
 from .parallel import update_prototypes_kernel, PARALLEL, resolve_n_jobs
 from vqlp import VQRecaller
 
@@ -463,15 +463,32 @@ class GTSOM:
             Delaunay triangulation) and <= N.
         coord_dim : {2, 3}, default 2
             Dimensionality of the output embedding.
-        coord_init : {'pca', 'le'}, default 'pca'
+        coord_init : {'pca', 'le', 'random', 'random_proj'}, default 'pca'
             Dimensionality reduction method for computing neuron coordinates
             from the initial prototype vectors.
 
             ``'pca'``
-                Randomised PCA (fast, linear).
+                Randomised PCA (fast, linear). The natural default when
+                ``W_init='kmeans'``, since k-means centroids carry data
+                structure that PCA can meaningfully summarise.
             ``'le'``
                 Laplacian Eigenmaps via sklearn SpectralEmbedding
-                (nonlinear, slower).
+                (nonlinear, slower). Useful when the data manifold is
+                curved.
+            ``'random'``
+                Sample ``M`` points uniformly at random from the unit
+                hypercube in ``coord_dim`` dimensions. Produces a
+                completely unstructured initial layout — the strongest
+                possible "worst-case" starting state for illustrating
+                how self-organising learning imposes order. Particularly
+                effective for exposition when combined with
+                ``W_init='random'``.
+            ``'random_proj'``
+                Johnson-Lindenstrauss random projection: multiply ``W``
+                by a random Gaussian matrix scaled by
+                ``1 / sqrt(coord_dim)``. Preserves approximate pairwise
+                distances in expectation at zero computational cost,
+                giving a random but structurally grounded starting layout.
         W_init : {'kmeans', 'random'}, default 'kmeans'
             How to find initial prototype vectors.
 
@@ -509,10 +526,10 @@ class GTSOM:
         """
         if coord_dim not in (2, 3):
             raise ValueError(f"coord_dim must be 2 or 3, got {coord_dim!r}")
-        if coord_init not in ('pca', 'le'):
+        if coord_init not in ('pca', 'le', 'random', 'random_proj'):
             raise ValueError(
-                f"coord_init must be 'pca' or 'le' for from_data, "
-                f"got {coord_init!r}"
+                f"coord_init must be 'pca', 'le', 'random', or 'random_proj' "
+                f"for from_data, got {coord_init!r}"
             )
         if coord_topo not in ('delaunay', 'gabriel'):
             raise ValueError(
@@ -545,8 +562,12 @@ class GTSOM:
         # Step 2: project W to coord_dim to define neuron positions
         if coord_init == 'pca':
             coords = reduce_coords_pca(W, coord_dim, self.random_state)
-        else:  # 'le'
+        elif coord_init == 'le':
             coords = reduce_coords_le(W, coord_dim, self.random_state)
+        elif coord_init == 'random':
+            coords = reduce_coords_random(M, coord_dim, self.random_state)
+        else:  # 'random_proj'
+            coords = reduce_coords_random_proj(W, coord_dim, self.random_state)
 
         # Step 3: build embedding from projected coords using chosen topology
         if coord_topo == 'delaunay':
