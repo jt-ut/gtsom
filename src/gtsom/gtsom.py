@@ -768,8 +768,8 @@ class GTSOM:
         if self._validator is not None:
             self._validator.check(X, context="fit")
 
-        _HDR = f"{'Epoch':>7}   {'rho':>6}   {'MQE':>8}   {'delBMU':>7}"
-        _SEP = f"{'-----':>7}   {'------':>6}   {'--------':>8}   {'-------':>7}"
+        _HDR = f"{'Epoch':>7}   {'rho':>6}   {'alpha':>6}   {'MQE':>8}   {'delBMU':>7}"
+        _SEP = f"{'-----':>7}   {'------':>6}   {'------':>6}   {'--------':>8}   {'-------':>7}"
 
         if verbose:
             print(_HDR)
@@ -794,7 +794,7 @@ class GTSOM:
             if verbose:
                 snap = self.learn_history_[-1]
                 print(
-                    f"{self.age:>7d}   {rho:>6.4f}   "
+                    f"{self.age:>7d}   {rho:>6.4f}   {alpha:>6.4f}   "
                     f"{snap['mqe']:>8.4f}   {snap['delBMU']:>7.4f}"
                 )
                 if (local_epoch + 1) % 10 == 0:

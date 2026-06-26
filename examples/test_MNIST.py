@@ -106,7 +106,7 @@ section("3. Initialising GTSOM (20x20 hex grid)")
 t0 = time.perf_counter()
 som = GTSOM(
     rho_0=10.0,
-    rho_f=1.0,
+    rho_f=0.5,
     halflife_epochs=100,
     n_jobs=-1,
     nbr_topo_alpha_0=0.5,
@@ -119,7 +119,7 @@ som.from_grid(
     X,
     shape=SHAPE,
     coord_init='hex',
-    W_init='pca',
+    W_init='random',
     labels=y,
 )
 print(f"  Init done in {time.perf_counter() - t0:.1f}s")
