@@ -113,7 +113,7 @@ som = GTSOM(
     nbr_topo_alpha_f=1.0,
     random_state=SEED,
     compute_dr_metrics=True,
-    proto_topo='CONN_STK',
+    proto_topo='STK_CADJ',
 )
 som.from_grid(
     X,

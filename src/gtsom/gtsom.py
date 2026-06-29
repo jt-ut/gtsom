@@ -1211,7 +1211,9 @@ class GTSOM:
                     support        = _support,
                 )
                 # Apply rho: K^(1/rho) = exp(-d²/(sigma_i*sigma_j*rho))
-                H_proto = H_proto ** (1.0 / rho)
+                # Must operate on .data directly — sparse ** float is matrix
+                # power (repeated multiplication), not elementwise.
+                H_proto.data **= (1.0 / rho)
                 # Threshold and clean up
                 H_proto.data[H_proto.data < self.nbr_influence_min] = 0.0
                 H_proto.eliminate_zeros()
