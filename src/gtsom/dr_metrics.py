@@ -16,10 +16,10 @@ Metrics overview
 Two families of metrics are computed:
 
 **Co-ranking family** (requires ``pyDRMetrics``):
-  Q_local, Q_global   — neighbourhood preservation at local and global scales
+  Q_local, Q_global   — neighborhood preservation at local and global scales
   Q_AUC               — preservation across all scales simultaneously
   LCMC_AUC            — chance-corrected Q_AUC (most interpretable scalar)
-  Trust_AUC           — absence of false neighbours, averaged over all scales
+  Trust_AUC           — absence of false neighbors, averaged over all scales
 
 **Folding metric** (requires embed_geodesic_dist and CONN; numpy/scipy only):
   CONN_WAFL           — weighted average embedding hops per high-d CONN edge
@@ -70,29 +70,29 @@ class DRMetricsResult:
 
     The co-ranking metrics (Q_local through Trust_AUC) are derived from the
     co-ranking matrix of the (high-d, low-d) point pair. They measure how
-    well the embedding preserves neighbourhood structure at various scales.
+    well the embedding preserves neighborhood structure at various scales.
     All co-ranking metrics are in [0, 1]; higher is better.
 
     Attributes
     ----------
     Q_local : float or None
-        Local neighbourhood preservation, averaged over neighbourhood sizes
-        k ≤ kmax, where kmax is the scale at which LCMC is maximised (a
+        Local neighborhood preservation, averaged over neighborhood sizes
+        k ≤ kmax, where kmax is the scale at which LCMC is maximized (a
         data-driven split between local and global scales). Measures whether
-        the nearest neighbours in high-d are also near neighbours in low-d.
+        the nearest neighbors in high-d are also near neighbors in low-d.
         Higher is better.
 
     Q_global : float or None
-        Global neighbourhood preservation, averaged over neighbourhood sizes
+        Global neighborhood preservation, averaged over neighborhood sizes
         k > kmax. Measures whether points that are far apart in high-d are
         also far apart in low-d. Complements Q_local: an embedding can score
         well locally but fold or compress at larger scales (or vice versa).
         Higher is better.
 
     Q_AUC : float or None
-        Mean QNN over all neighbourhood sizes k — the area under the QNN(k)
+        Mean QNN over all neighborhood sizes k — the area under the QNN(k)
         curve (computed as a simple mean, mirroring pyDRMetrics). Summarises
-        neighbourhood preservation across all scales simultaneously. Higher
+        neighborhood preservation across all scales simultaneously. Higher
         is better.
 
     LCMC_AUC : float or None
@@ -102,17 +102,17 @@ class DRMetricsResult:
 
         The subtracted term is the expected QNN under a random embedding, so
         LCMC(k) measures how much better than chance the embedding is at scale
-        k. LCMC_AUC integrates LCMC over all k and normalises by the
+        k. LCMC_AUC integrates LCMC over all k and normalizes by the
         theoretical maximum AUC (integral of 1 - k/K), giving a score in
         [0, 1] where 1 = perfect preservation and 0 = chance level. This is
         the most interpretable single scalar summary of embedding quality.
 
     Trust_AUC : float or None
-        Trustworthiness, averaged over all neighbourhood sizes k. T(k)
-        measures the absence of false neighbours introduced by the embedding:
-        points that appear as k-nearest neighbours in low-d but are *not*
-        k-nearest neighbours in high-d. T(k) = 1 is perfect (no false
-        neighbours at scale k); T(k) < 1 indicates intrusions. T(k) is
+        Trustworthiness, averaged over all neighborhood sizes k. T(k)
+        measures the absence of false neighbors introduced by the embedding:
+        points that appear as k-nearest neighbors in low-d but are *not*
+        k-nearest neighbors in high-d. T(k) = 1 is perfect (no false
+        neighbors at scale k); T(k) < 1 indicates intrusions. T(k) is
         typically monotonically decreasing with k (intrusions become
         inevitable at large k), so no local/global split is applied — the
         mean over all k is the natural summary. Higher is better.
@@ -121,15 +121,15 @@ class DRMetricsResult:
         Weighted Average Folding Length, computed over the CONN prototype
         co-adjacency graph. Measures how many hops in the embedding (low-d
         geodesic distance) are needed, on average, to span each pair of
-        prototypes that are neighbours in high-d according to CONN:
+        prototypes that are neighbors in high-d according to CONN:
 
             CONN_WAFL = Σ_{(i,j): CONN[i,j]>0} CONN[i,j] * embed_geodesic_dist[i,j]
                       / Σ_{(i,j): CONN[i,j]>0} CONN[i,j]
 
         where embed_geodesic_dist[i,j] is the geodesic hop-count distance between prototypes
         i and j in the embedding graph. CONN_WAFL = 1 is ideal (every high-d
-        CONN-neighbour pair is also a direct embedding neighbour). Values > 1
-        indicate folding: high-d neighbours are separated in the embedding,
+        CONN-neighbor pair is also a direct embedding neighbor). Values > 1
+        indicate folding: high-d neighbors are separated in the embedding,
         requiring multiple hops to connect them. Only computed when embed_geodesic_dist and
         CONN are provided.
 
@@ -172,7 +172,7 @@ def _compute_coranking_metrics(X, Y):
 
     Extracts Q_local, Q_global, Q_AUC, LCMC_AUC, and Trust_AUC from the
     co-ranking matrix of (X, Y). The local/global split for Q is determined
-    by kmax — the neighbourhood size at which LCMC is maximised. Trust_AUC
+    by kmax — the neighborhood size at which LCMC is maximized. Trust_AUC
     is the mean of T(k) over all k independently of kmax, since T(k) is
     typically monotonically decreasing and has no natural internal maximum.
 
@@ -207,7 +207,7 @@ def _compute_coranking_metrics(X, Y):
     Q_global = float(drm.Qglobal)
     Q_AUC    = float(drm.AUC)
 
-    # LCMC_AUC: integrate LCMC(k) and normalise by theoretical maximum AUC.
+    # LCMC_AUC: integrate LCMC(k) and normalize by theoretical maximum AUC.
     # The maximum AUC is the integral of (1 - k/K), the ceiling of LCMC(k).
     # krng is 1-based to mirror the R reference implementation (seq_along).
     lcmc = np.asarray(drm.LCMC, dtype=np.float64)
@@ -232,7 +232,7 @@ def _compute_conn_wafl(embed_geodesic_dist, CONN):
 
     CONN_WAFL is the CONN-weighted mean of the embedding geodesic distances
     embed_geodesic_dist[i,j] over all prototype pairs (i,j) with CONN[i,j] > 0. A value of
-    1 is ideal; values > 1 indicate that high-d manifold neighbours are
+    1 is ideal; values > 1 indicate that high-d manifold neighbors are
     separated in the embedding (folding).
 
     CONN is symmetric, so each pair (i,j) and (j,i) both appear as nonzero
@@ -248,7 +248,7 @@ def _compute_conn_wafl(embed_geodesic_dist, CONN):
         (e.g. ``Embedding.dist``).
     CONN : scipy.sparse matrix, shape (M, M)
         Prototype co-adjacency matrix. Nonzero entries indicate high-d
-        manifold neighbours; values are co-occurrence counts used as weights.
+        manifold neighbors; values are co-occurrence counts used as weights.
 
     Returns
     -------
@@ -289,7 +289,7 @@ def compute_dr_metrics(
 
     Two families of metrics are available:
 
-    **Co-ranking family** (requires ``pyDRMetrics``): measures of neighbourhood
+    **Co-ranking family** (requires ``pyDRMetrics``): measures of neighborhood
     preservation at local scales, global scales, and across all scales, plus a
     chance-corrected summary (LCMC_AUC) and a trustworthiness summary
     (Trust_AUC). Set ``compute_coranking=False`` to skip if ``pyDRMetrics``
@@ -297,7 +297,7 @@ def compute_dr_metrics(
 
     **CONN_WAFL** (requires ``embed_geodesic_dist`` and ``CONN``): a CONN-weighted measure of
     embedding folding — how many embedding hops are needed, on average, to
-    span each high-d CONN neighbourhood. Requires only numpy/scipy.
+    span each high-d CONN neighborhood. Requires only numpy/scipy.
 
     Parameters
     ----------

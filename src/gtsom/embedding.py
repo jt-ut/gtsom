@@ -202,6 +202,12 @@ class Embedding:
         """
         if self.dist_metric == "geodesic":
             return self._compute_geodesic_dist()
+        else:
+            raise ValueError(
+                f"Unhandled dist_metric {self.dist_metric!r}. "
+                "This is an internal error — add a branch here when extending "
+                "SUPPORTED_DIST_METRICS."
+            )
 
     def _compute_geodesic_dist(self):
         """

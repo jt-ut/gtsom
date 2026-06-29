@@ -137,7 +137,7 @@ def reduce_coords_le(W, coord_dim, random_state=None):
     """
     Reduce prototype matrix W to coord_dim dimensions via Laplacian Eigenmaps.
 
-    Uses sklearn SpectralEmbedding with a nearest-neighbours affinity graph
+    Uses sklearn SpectralEmbedding with a nearest-neighbors affinity graph
     built from the prototype vectors.
 
     Parameters
@@ -234,11 +234,11 @@ class ExponentialAnneal:
     epochs have elapsed.
 
     Supports both decreasing schedules (``final < initial``, e.g. annealing
-    a neighbourhood bandwidth from broad to narrow) and increasing schedules
-    (``final > initial``, e.g. shifting neighbourhood influence from
+    a neighborhood bandwidth from broad to narrow) and increasing schedules
+    (``final > initial``, e.g. shifting neighborhood influence from
     lattice-dominated toward CONN-dominated over training). The direction
     is inferred automatically from the relationship between ``initial``
-    and ``final``; the formula and clipping behaviour adapt accordingly.
+    and ``final``; the formula and clipping behavior adapt accordingly.
 
     ``initial`` and ``final`` may be zero. If either is zero it is replaced
     internally by a small positive floor (``_ANNEAL_EPS = 1e-8``) before
@@ -250,7 +250,7 @@ class ExponentialAnneal:
     the zero-handling.
 
     Intended for use with any parameter that requires monotonic change
-    during training — neighbourhood bandwidth (rho), topology-blending
+    during training — neighborhood bandwidth (rho), topology-blending
     weight (nbr_topo_alpha), learning rate, etc.
 
     Parameters
@@ -275,9 +275,11 @@ class ExponentialAnneal:
     >>> schedule = ExponentialAnneal(initial=5.0, final=0.3, tau=20)
     >>> schedule(0)
     5.0
-    >>> schedule(20)   # one tau — decayed toward final
-    0.549...
-    >>> schedule(1000)  # far beyond target — clipped at final
+    >>> schedule(10)   # half a tau — midway through the decay
+    1.2247...
+    >>> schedule(20)   # one full tau — reaches final exactly
+    0.3
+    >>> schedule(1000)  # beyond tau — clipped at final
     0.3
 
     Decreasing to zero:
@@ -328,11 +330,9 @@ class ExponentialAnneal:
         # Detect flat schedule (initial == final)
         self._flat = self.initial == self.final
         if self._flat:
-            self._increasing   = False
-            self.target_epochs = 0.0
+            self._increasing = False
         else:
-            self._increasing   = self.final > self.initial
-            self.target_epochs = self.tau * abs(np.log(self._sf / self._si))
+            self._increasing = self.final > self.initial
 
     @classmethod
     def from_halflife(cls, initial, final, halflife_epochs):
@@ -485,6 +485,5 @@ class ExponentialAnneal:
             f"ExponentialAnneal("
             f"initial={self.initial}, "
             f"final={self.final}, "
-            f"tau={self.tau:.4g}, "
-            f"target_epochs={self.target_epochs:.4g})"
+            f"tau={self.tau:.4g})"
         )

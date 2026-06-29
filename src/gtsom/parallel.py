@@ -39,7 +39,7 @@ except ImportError:
 
 
 # ---------------------------------------------------------------------------
-# Thread count resolver — used by GTSOM.compile() and fit()
+# Thread count resolver — used by GTSOM.__init__() and fit()
 # ---------------------------------------------------------------------------
 
 def resolve_n_jobs(n_jobs):
@@ -91,7 +91,7 @@ if _NUMBA_AVAILABLE:
 
         For each unique BMU b (processed in parallel across threads):
           1. Accumulate X_b_sum = sum of X[i] for all i whose BMU is b.
-          2. For each neighbour j of b (from CSR row b of nbr_W):
+          2. For each neighbor j of b (from CSR row b of nbr_W):
                thread_sum_HX[tid, j] += nbr_W[b, j] * X_b_sum
                thread_sum_H[tid, j]  += nbr_W[b, j] * n_b
 
@@ -125,7 +125,7 @@ if _NUMBA_AVAILABLE:
                 for dim in range(d):
                     X_b_sum[dim] += X[row, dim]
 
-            # Scatter to neighbours via CSR row b
+            # Scatter to neighbors via CSR row b
             row_start = nbr_indptr[b]
             row_end   = nbr_indptr[b + 1]
             for nz in range(row_start, row_end):

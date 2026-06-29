@@ -3,7 +3,7 @@ gtsom.py — General Topology Self-Organizing Map
 
 The GTSOM class implements batch SOM learning over an arbitrary low-dimensional
 output topology defined by an Embedding instance. Prototype vectors live in
-high-dimensional feature space; their neighbourhood relationships are governed
+high-dimensional feature space; their neighborhood relationships are governed
 by geodesic distances on the output manifold.
 
 Typical usage
@@ -18,7 +18,7 @@ som = GTSOM(rho_0=5.0, rho_f=0.5, halflife_epochs=50)
 som.from_data(X, M=100, coord_dim=2, coord_init='pca', W_init='kmeans')
 som.fit(X, n_epochs=20)
 
-# Hybrid lattice + CONN-based neighbourhood update
+# Hybrid lattice + CONN-based neighborhood update
 som = GTSOM(
     rho_0=5.0, rho_f=0.5, halflife_epochs=50,
     nbr_topo_alpha_0=1.0, nbr_topo_alpha_f=0.3,
@@ -29,7 +29,7 @@ som.fit(X, n_epochs=20)
 Notes
 -----
 GTSOM does not perform any internal scaling of X. It is the caller's
-responsibility to whiten, standardise, or otherwise preprocess X before
+responsibility to whiten, standardize, or otherwise preprocess X before
 passing it to any method. Distances computed during prototype updates and
 BMU search will reflect the scale of the input features.
 """
@@ -146,15 +146,15 @@ class GTSOM:
 
     The constructor sets all learning parameters (schedules, parallelism,
     diagnostics). After construction, call :meth:`from_grid` or
-    :meth:`from_data` to set the output topology and initialise prototypes,
+    :meth:`from_data` to set the output topology and initialize prototypes,
     then call :meth:`fit` to train.
 
     Parameters
     ----------
     rho_0 : float
-        Initial neighbourhood bandwidth.
+        Initial neighborhood bandwidth.
     rho_f : float
-        Final (minimum) neighbourhood bandwidth.
+        Final (minimum) neighborhood bandwidth.
     tau : float, optional
         Exponential decay time constant in epochs. Mutually exclusive with
         ``halflife_epochs``.
@@ -169,8 +169,8 @@ class GTSOM:
         installed.
     nbr_topo_alpha_0 : float, default 1.0
         Initial value of the topology-blending parameter, in [0, 1]. When
-        1.0, pure lattice-based neighbourhood (classical SOM). When < 1.0,
-        a blend of lattice and CONN-graph neighbourhood is used. See
+        1.0, pure lattice-based neighborhood (classical SOM). When < 1.0,
+        a blend of lattice and CONN-graph neighborhood is used. See
         :meth:`_compute_neighborhood` for the full blending rule.
     nbr_topo_alpha_f : float, optional
         Final value of the topology-blending parameter, in [0, 1]. Defaults
@@ -186,7 +186,7 @@ class GTSOM:
         on this instance.
     proto_topo : {'CONN_GD', 'STK_CADJ', 'STK_dense'}, default 'CONN_GD'
         Input-space (prototype) topology used to compute the high-dimensional
-        neighbourhood signal when ``nbr_topo_alpha < 1.0``. Has no effect
+        neighborhood signal when ``nbr_topo_alpha < 1.0``. Has no effect
         when ``nbr_topo_alpha_0 == nbr_topo_alpha_f == 1.0``.
 
         ``'CONN_GD'``
@@ -198,7 +198,7 @@ class GTSOM:
             Self-tuning kernel, CADJ-constrained support. The kernel is
             evaluated only for prototype pairs where CADJ[i,j] > 0 (after
             padding via ``pad_CADJ`` to ensure every row has at least 3
-            neighbours). CADJ weights define ``sigma_i`` (local bandwidth);
+            neighbors). CADJ weights define ``sigma_i`` (local bandwidth);
             the kernel is
             ``K[i,j] = exp(-dist²(W[i],W[j]) / (sigma_i * sigma_j)) ** (1/rho)``.
             Cheaper than ``'STK_dense'`` for large M; closer in spirit to
@@ -216,16 +216,16 @@ class GTSOM:
     Notes
     -----
     GTSOM does not perform any internal scaling of X. It is the caller's
-    responsibility to whiten, standardise, or otherwise preprocess X before
+    responsibility to whiten, standardize, or otherwise preprocess X before
     passing it to any method.
 
     Raises
     ------
     ValueError
         If neither or both of ``tau`` and ``halflife_epochs`` are supplied,
-        if ``anneal`` is not recognised, if either alpha parameter is
+        if ``anneal`` is not recognized, if either alpha parameter is
         outside [0, 1], if ``nbr_influence_min`` is not in (0, 1), or if
-        ``proto_topo`` is not recognised.
+        ``proto_topo`` is not recognized.
     """
 
     def __init__(
@@ -327,7 +327,7 @@ class GTSOM:
         self.prevBMU    = None   # (N,) previous-epoch BMU assignments
         self.W0         = None   # initial prototype matrix (never modified)
         self.coords0    = None   # initial embedding coords (never modified)
-        self.nbr_W      = None   # neighbourhood weight matrix (M, M)
+        self.nbr_W      = None   # neighborhood weight matrix (M, M)
 
         # ------------------------------------------------------------------
         # Training state
@@ -340,12 +340,13 @@ class GTSOM:
         # populated by from_grid / from_data. Subsequent entries are
         # appended by fit() after each epoch.
         # Each dict contains:
-        #   'age'        : int              — self.age at snapshot time
-        #   'mqe'        : float            — global MQE over all data
-        #   'W_mqe'      : ndarray (M,)     — per-prototype MQE, nan for empty RFs
-        #   'delBMU'     : float            — fraction of data whose BMU changed
-        #   'dr_metrics' : DRMetricsResult  — DR quality metrics, or None
-        #   'fig'        : ggplot or None   — plot captured this epoch
+        #   'age'        : int                   — self.age at snapshot time
+        #   'mqe'        : float                 — global RMSE over all data
+        #                                          (sqrt of mean squared L2 dist)
+        #   'W_mqe'      : ndarray (M,)          — per-prototype RMSE, nan for empty RFs
+        #   'delBMU'     : float                 — fraction of data whose BMU changed
+        #   'dr_metrics' : DRMetricsResult       — DR quality metrics, or None
+        #   'fig'        : plotnine.ggplot or None — plot captured this epoch
         self.learn_history_ = []
 
     # ------------------------------------------------------------------
@@ -357,7 +358,7 @@ class GTSOM:
         """Number of prototypes (neurons)."""
         if self.W is None:
             raise RuntimeError(
-                "Architecture not initialised. "
+                "Architecture not initialized. "
                 "Call from_grid() or from_data() first."
             )
         return self.W.shape[0]
@@ -367,7 +368,7 @@ class GTSOM:
         """Dimensionality of the high-dimensional feature space."""
         if self.W is None:
             raise RuntimeError(
-                "Architecture not initialised. "
+                "Architecture not initialized. "
                 "Call from_grid() or from_data() first."
             )
         return self.W.shape[1]
@@ -385,7 +386,7 @@ class GTSOM:
         labels=None,
     ):
         """
-        Set a regular grid output topology and initialise prototypes.
+        Set a regular grid output topology and initialize prototypes.
 
         Wipes any existing architecture (W, embed, recaller, learn_history_,
         etc.) and builds a fresh grid-based configuration. All learning
@@ -403,7 +404,7 @@ class GTSOM:
             Grid layout. ``'hex'`` uses a hexagonal arrangement (Delaunay
             adjacency); ``'rect'`` uses an 8-connected rectangular grid.
         W_init : {'random', 'pca'}, default 'random'
-            How to initialise prototype vectors W.
+            How to initialize prototype vectors W.
 
             ``'random'``
                 Random sample of M rows from X.
@@ -425,7 +426,7 @@ class GTSOM:
         ------
         ValueError
             If ``shape`` is not a 2- or 3-tuple, ``coord_init`` or
-            ``W_init`` are not recognised, or the grid has more neurons
+            ``W_init`` are not recognized, or the grid has more neurons
             than data points.
         """
         if coord_init not in ('hex', 'rect'):
@@ -444,6 +445,8 @@ class GTSOM:
             )
 
         X = np.asarray(X)
+        if X.ndim != 2:
+            raise ValueError(f"X must be 2-D, got shape {X.shape}")
         rng = np.random.default_rng(self.random_state)
 
         # Build embedding — grid kind matches coord_init
@@ -476,7 +479,7 @@ class GTSOM:
         labels=None,
     ):
         """
-        Set a data-driven output topology and initialise prototypes.
+        Set a data-driven output topology and initialize prototypes.
 
         Wipes any existing architecture (W, embed, recaller, learn_history_,
         etc.) and builds a fresh data-driven configuration. All learning
@@ -553,7 +556,7 @@ class GTSOM:
         ------
         ValueError
             If ``coord_dim`` is not 2 or 3, or if any of ``coord_init``,
-            ``W_init``, or ``coord_topo`` are not recognised, or M is out
+            ``W_init``, or ``coord_topo`` are not recognized, or M is out
             of range.
         ImportError
             If ``W_init='kmeans'`` and vqlp is not installed.
@@ -587,7 +590,7 @@ class GTSOM:
         X = np.asarray(X)
         rng = np.random.default_rng(self.random_state)
 
-        # Step 1: initialise prototype vectors in high-d
+        # Step 1: initialize prototype vectors in high-d
         if W_init == 'kmeans':
             W = _init_W_kmeans(X, M, self.random_state)
         else:  # 'random'
@@ -654,7 +657,7 @@ class GTSOM:
         """
         if self.W is None:
             raise RuntimeError(
-                "Architecture not initialised. "
+                "Architecture not initialized. "
                 "Call from_grid() or from_data() before fit()."
             )
 
@@ -721,7 +724,7 @@ class GTSOM:
         """
         if self.W is None:
             raise RuntimeError(
-                "Architecture not initialised. "
+                "Architecture not initialized. "
                 "Call from_grid() or from_data() before transform()."
             )
         if self.age == 0:
@@ -733,23 +736,30 @@ class GTSOM:
         self.recaller.recall(X=X, W=self.W)
         return self.embed.coords[self.recaller.BMU[:, 0]]
 
-    def fit_transform(self, X, **fit_kwargs):
+    def fit_transform(self, X, n_epochs, **fit_kwargs):
         """
         Fit the GTSOM and return output coordinates.
 
         Equivalent to calling :meth:`fit` followed by :meth:`transform`.
+        ``n_epochs`` must be supplied explicitly; it is passed through to
+        :meth:`fit` along with any additional keyword arguments. Example::
+
+            coords = som.fit_transform(X, n_epochs=100, labels=y, verbose=False)
 
         Parameters
         ----------
         X : array-like, shape (N, d)
+        n_epochs : int
+            Number of training epochs. Passed to :meth:`fit`.
         **fit_kwargs
-            Passed to :meth:`fit`.
+            Additional keyword arguments forwarded to :meth:`fit`
+            (e.g. ``labels``, ``verbose``, ``plot_every``).
 
         Returns
         -------
         coords : np.ndarray, shape (N, embed.dim)
         """
-        self.fit(X, **fit_kwargs)
+        self.fit(X, n_epochs=n_epochs, **fit_kwargs)
         return self.transform(X)
 
     # ------------------------------------------------------------------
@@ -762,7 +772,7 @@ class GTSOM:
         cmap='viridis',
         rf_size_log_threshold=10,
         legend_pos='right',
-        title='SOUMAP',
+        title='GTSOM',
         subtitle=None,
         xlab=r'SOM$_1$',
         ylab=r'SOM$_2$',
@@ -787,7 +797,7 @@ class GTSOM:
         Parameters
         ----------
         color_by : {'auto', 'mqe', 'rfsize', 'labels'}, default 'auto'
-            Quantity used to colour neurons.
+            Quantity used to color neurons.
 
             ``'auto'``
                 Use ``'labels'`` if ``recaller.WL`` is available,
@@ -812,7 +822,7 @@ class GTSOM:
         legend_pos : str, default 'right'
             Legend / colorbar position. One of ``'right'``, ``'bottom'``,
             or ``'none'``.
-        title : str or None, default 'SOUMAP'
+        title : str or None, default 'GTSOM'
             Main title line.
         subtitle : str or None, default None
             Subtitle line. If None, auto-generates ``'Epoch {self.age}'``.
@@ -836,7 +846,7 @@ class GTSOM:
         """
         if self.W is None:
             raise RuntimeError(
-                "Architecture not initialised. "
+                "Architecture not initialized. "
                 "Call from_grid() or from_data() before plot()."
             )
 
@@ -952,14 +962,14 @@ class GTSOM:
     def update_embedding(self, coords):
         """
         Replace the output-space embedding coordinates and refresh the
-        neighbourhood weight matrix atomically.
+        neighborhood weight matrix atomically.
 
         Calls ``self.embed.update_coords(coords)`` to validate the new
         positions, rebuild adjacency, and recompute geodesic distances.
         Then immediately recomputes ``self.nbr_W`` from the updated
         topology using the current annealing bandwidth
         ``self.rho_schedule(self.age)``, so that the next :meth:`fit`
-        call starts with a consistent neighbourhood structure.
+        call starts with a consistent neighborhood structure.
 
         Parameters
         ----------
@@ -980,7 +990,7 @@ class GTSOM:
         """
         if self.W is None:
             raise RuntimeError(
-                "Architecture not initialised. "
+                "Architecture not initialized. "
                 "Call from_grid() or from_data() before update_embedding()."
             )
         self.embed.update_coords(coords)
@@ -996,7 +1006,7 @@ class GTSOM:
 
     def _init_architecture(self, X, W, embed, labels):
         """
-        Wipe all architecture state and reinitialise from (X, W, embed).
+        Wipe all architecture state and reinitialize from (X, W, embed).
 
         Called at the end of both :meth:`from_grid` and :meth:`from_data`
         after the topology and prototype matrix have been assembled. Handles
@@ -1052,12 +1062,21 @@ class GTSOM:
 
     def _compute_W_mqe(self):
         """
-        Compute per-prototype mean quantization error from the current recall.
+        Compute per-prototype mean quantization error (RMSE) from the
+        current recall.
+
+        The quantization error stored by ``vqlp`` (``recaller.QE``) is the
+        **squared** L2 distance from each data point to its BMU. Per-prototype
+        MQE is therefore computed as the square root of the mean squared
+        distance over all points in the receptive field — i.e. the root mean
+        square error (RMSE), the standard definition of MQE in the SOM
+        literature.
 
         Returns
         -------
         W_mqe : np.ndarray, shape (M,)
-            Per-prototype MQE; np.nan for empty receptive fields.
+            Per-prototype RMSE; np.nan for prototypes with empty receptive
+            fields.
         """
         bmu    = self.recaller.BMU[:, 0]
         qe     = self.recaller.QE[:, 0]
@@ -1100,6 +1119,7 @@ class GTSOM:
         # Step 2
         self.learn_history_.append({
             'age'        : self.age,
+            # Global MQE: sqrt(mean(QE)) where QE is squared L2 distance — i.e. RMSE.
             'mqe'        : float(np.sqrt(self.recaller.QE[:, 0].mean())),
             'W_mqe'      : self._compute_W_mqe(),
             'delBMU'     : delBMU,
@@ -1135,7 +1155,9 @@ class GTSOM:
                 CONN                = self.recaller.CONN,
                 compute_coranking   = True,
             )
-        except ImportError:
+        except ImportError as e:
+            if 'pyDRMetrics' not in str(e):
+                raise
             return _compute_dr_metrics(
                 X                   = self.W,
                 Y                   = self.embed.coords,
@@ -1146,14 +1168,14 @@ class GTSOM:
 
     def _compute_neighborhood(self, rho, alpha):
         """
-        Compute neighbourhood activation weights for the current epoch.
+        Compute neighborhood activation weights for the current epoch.
 
-        When ``alpha == 1.0``, pure lattice-based neighbourhood (standard SOM)::
+        When ``alpha == 1.0``, pure lattice-based neighborhood (standard SOM)::
 
             nbr_W = H_lat   where   H_lat[i, j] = exp(-D_lat[i, j] / rho)
 
-        When ``alpha < 1.0``, a hybrid blend of the lattice neighbourhood and
-        an input-space (prototype) neighbourhood is used::
+        When ``alpha < 1.0``, a hybrid blend of the lattice neighborhood and
+        an input-space (prototype) neighborhood is used::
 
             nbr_W = alpha * H_lat + (1 - alpha) * H_proto
 

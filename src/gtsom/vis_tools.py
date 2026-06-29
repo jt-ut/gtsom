@@ -28,6 +28,15 @@ from plotnine import (
 )
 
 
+__all__ = [
+    "theme_minimal_bold",
+    "parse_ctab",
+    "build_ctab",
+    "vis_embedding_discrete",
+    "vis_embedding_continuous",
+]
+
+
 # ---------------------------------------------------------------------------
 # Internal utilities
 # ---------------------------------------------------------------------------
