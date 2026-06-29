@@ -66,12 +66,11 @@ def theme_minimal_bold(text_color="black", **kwargs):
     return (
         theme_minimal() +
         theme(
-            axis_title   = element_text(family="DejaVu Sans", weight="bold", color=text_color),
-            plot_title   = element_text(family="DejaVu Sans", ha="left", weight="bold", color=text_color),
+            text         = element_text(family="DejaVu Sans", color=text_color),  # base for all text
+            axis_title   = element_text(weight="bold"),
+            plot_title   = element_text(ha="left", weight="bold"),
             axis_line    = element_line(color=text_color),
-            axis_text    = element_text(family="DejaVu Sans", color=text_color),
-            legend_title = element_text(family="DejaVu Sans", weight="bold", color=text_color),
-            legend_text  = element_text(family="DejaVu Sans", color=text_color),
+            legend_title = element_text(weight="bold"),
             panel_border      = element_blank(),
             plot_background   = element_rect(fill="white", color=None),
             panel_background  = element_rect(fill="white", color=None),
