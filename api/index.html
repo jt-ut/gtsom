@@ -1270,7 +1270,7 @@
         <p>General Topology Self-Organizing Map.</p>
 <p>The constructor sets all learning parameters (schedules, parallelism,
 diagnostics). After construction, call :meth:<code>from_grid</code> or
-:meth:<code>from_data</code> to set the output topology and initialise prototypes,
+:meth:<code>from_data</code> to set the output topology and initialize prototypes,
 then call :meth:<code>fit</code> to train.</p>
 
 
@@ -1294,7 +1294,7 @@ then call :meth:<code>fit</code> to train.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Initial neighbourhood bandwidth.</p>
+                <p>Initial neighborhood bandwidth.</p>
               </div>
             </td>
             <td>
@@ -1310,7 +1310,7 @@ then call :meth:<code>fit</code> to train.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Final (minimum) neighbourhood bandwidth.</p>
+                <p>Final (minimum) neighborhood bandwidth.</p>
               </div>
             </td>
             <td>
@@ -1395,8 +1395,8 @@ installed.</p>
             <td>
               <div class="doc-md-description">
                 <p>Initial value of the topology-blending parameter, in [0, 1]. When
-1.0, pure lattice-based neighbourhood (classical SOM). When &lt; 1.0,
-a blend of lattice and CONN-graph neighbourhood is used. See
+1.0, pure lattice-based neighborhood (classical SOM). When &lt; 1.0,
+a blend of lattice and CONN-graph neighborhood is used. See
 :meth:<code>_compute_neighborhood</code> for the full blending rule.</p>
               </div>
             </td>
@@ -1468,7 +1468,7 @@ on this instance.</p>
             <td>
               <div class="doc-md-description">
                 <p>Input-space (prototype) topology used to compute the high-dimensional
-neighbourhood signal when <code>nbr_topo_alpha &lt; 1.0</code>. Has no effect
+neighborhood signal when <code>nbr_topo_alpha &lt; 1.0</code>. Has no effect
 when <code>nbr_topo_alpha_0 == nbr_topo_alpha_f == 1.0</code>.</p>
 <p><code>'CONN_GD'</code>
     CONN geodesic distances. The CONN matrix is treated as an
@@ -1479,7 +1479,7 @@ when <code>nbr_topo_alpha_0 == nbr_topo_alpha_f == 1.0</code>.</p>
     Self-tuning kernel, CADJ-constrained support. The kernel is
     evaluated only for prototype pairs where CADJ[i,j] &gt; 0 (after
     padding via <code>pad_CADJ</code> to ensure every row has at least 3
-    neighbours). CADJ weights define <code>sigma_i</code> (local bandwidth);
+    neighbors). CADJ weights define <code>sigma_i</code> (local bandwidth);
     the kernel is
     <code>K[i,j] = exp(-dist²(W[i],W[j]) / (sigma_i * sigma_j)) ** (1/rho)</code>.
     Cheaper than <code>'STK_dense'</code> for large M; closer in spirit to
@@ -1520,7 +1520,7 @@ when <code>nbr_topo_alpha_0 == nbr_topo_alpha_f == 1.0</code>.</p>
 <details class="note" open>
   <summary>Notes</summary>
   <p>GTSOM does not perform any internal scaling of X. It is the caller's
-responsibility to whiten, standardise, or otherwise preprocess X before
+responsibility to whiten, standardize, or otherwise preprocess X before
 passing it to any method.</p>
 </details>
 
@@ -1540,9 +1540,9 @@ passing it to any method.</p>
             <td>
               <div class="doc-md-description">
                 <p>If neither or both of <code>tau</code> and <code>halflife_epochs</code> are supplied,
-if <code>anneal</code> is not recognised, if either alpha parameter is
+if <code>anneal</code> is not recognized, if either alpha parameter is
 outside [0, 1], if <code>nbr_influence_min</code> is not in (0, 1), or if
-<code>proto_topo</code> is not recognised.</p>
+<code>proto_topo</code> is not recognized.</p>
               </div>
             </td>
           </tr>
@@ -1676,7 +1676,8 @@ outside [0, 1], if <code>nbr_influence_min</code> is not in (0, 1), or if
 <span class="normal">346</span>
 <span class="normal">347</span>
 <span class="normal">348</span>
-<span class="normal">349</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">349</span>
+<span class="normal">350</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">rho_0</span><span class="p">,</span>
     <span class="n">rho_f</span><span class="p">,</span>
@@ -1775,7 +1776,7 @@ outside [0, 1], if <code>nbr_influence_min</code> is not in (0, 1), or if
     <span class="bp">self</span><span class="o">.</span><span class="n">prevBMU</span>    <span class="o">=</span> <span class="kc">None</span>   <span class="c1"># (N,) previous-epoch BMU assignments</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">W0</span>         <span class="o">=</span> <span class="kc">None</span>   <span class="c1"># initial prototype matrix (never modified)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">coords0</span>    <span class="o">=</span> <span class="kc">None</span>   <span class="c1"># initial embedding coords (never modified)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">nbr_W</span>      <span class="o">=</span> <span class="kc">None</span>   <span class="c1"># neighbourhood weight matrix (M, M)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">nbr_W</span>      <span class="o">=</span> <span class="kc">None</span>   <span class="c1"># neighborhood weight matrix (M, M)</span>
 
     <span class="c1"># ------------------------------------------------------------------</span>
     <span class="c1"># Training state</span>
@@ -1788,12 +1789,13 @@ outside [0, 1], if <code>nbr_influence_min</code> is not in (0, 1), or if
     <span class="c1"># populated by from_grid / from_data. Subsequent entries are</span>
     <span class="c1"># appended by fit() after each epoch.</span>
     <span class="c1"># Each dict contains:</span>
-    <span class="c1">#   &#39;age&#39;        : int              — self.age at snapshot time</span>
-    <span class="c1">#   &#39;mqe&#39;        : float            — global MQE over all data</span>
-    <span class="c1">#   &#39;W_mqe&#39;      : ndarray (M,)     — per-prototype MQE, nan for empty RFs</span>
-    <span class="c1">#   &#39;delBMU&#39;     : float            — fraction of data whose BMU changed</span>
-    <span class="c1">#   &#39;dr_metrics&#39; : DRMetricsResult  — DR quality metrics, or None</span>
-    <span class="c1">#   &#39;fig&#39;        : ggplot or None   — plot captured this epoch</span>
+    <span class="c1">#   &#39;age&#39;        : int                   — self.age at snapshot time</span>
+    <span class="c1">#   &#39;mqe&#39;        : float                 — global RMSE over all data</span>
+    <span class="c1">#                                          (sqrt of mean squared L2 dist)</span>
+    <span class="c1">#   &#39;W_mqe&#39;      : ndarray (M,)          — per-prototype RMSE, nan for empty RFs</span>
+    <span class="c1">#   &#39;delBMU&#39;     : float                 — fraction of data whose BMU changed</span>
+    <span class="c1">#   &#39;dr_metrics&#39; : DRMetricsResult       — DR quality metrics, or None</span>
+    <span class="c1">#   &#39;fig&#39;        : plotnine.ggplot or None — plot captured this epoch</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">learn_history_</span> <span class="o">=</span> <span class="p">[]</span>
 </code></pre></div></td></tr></table></div>
                   </details>
@@ -1874,7 +1876,7 @@ outside [0, 1], if <code>nbr_influence_min</code> is not in (0, 1), or if
 
     <div class="doc doc-contents ">
 
-        <p>Set a regular grid output topology and initialise prototypes.</p>
+        <p>Set a regular grid output topology and initialize prototypes.</p>
 <p>Wipes any existing architecture (W, embed, recaller, learn_history_,
 etc.) and builds a fresh grid-based configuration. All learning
 parameters (rho schedules, nbr_influence_min, etc.) are inherited from the
@@ -1956,7 +1958,7 @@ adjacency); <code>'rect'</code> uses an 8-connected rectangular grid.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>How to initialise prototype vectors W.</p>
+                <p>How to initialize prototype vectors W.</p>
 <p><code>'random'</code>
     Random sample of M rows from X.
 <code>'pca'</code>
@@ -2030,7 +2032,7 @@ initial recall and stored on <code>self.recaller</code>.</p>
             <td>
               <div class="doc-md-description">
                 <p>If <code>shape</code> is not a 2- or 3-tuple, <code>coord_init</code> or
-<code>W_init</code> are not recognised, or the grid has more neurons
+<code>W_init</code> are not recognized, or the grid has more neurons
 than data points.</p>
               </div>
             </td>
@@ -2041,8 +2043,7 @@ than data points.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">379</span>
-<span class="normal">380</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">380</span>
 <span class="normal">381</span>
 <span class="normal">382</span>
 <span class="normal">383</span>
@@ -2128,7 +2129,10 @@ than data points.</p>
 <span class="normal">463</span>
 <span class="normal">464</span>
 <span class="normal">465</span>
-<span class="normal">466</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">from_grid</span><span class="p">(</span>
+<span class="normal">466</span>
+<span class="normal">467</span>
+<span class="normal">468</span>
+<span class="normal">469</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">from_grid</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">X</span><span class="p">,</span>
     <span class="n">shape</span><span class="p">,</span>
@@ -2137,7 +2141,7 @@ than data points.</p>
     <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Set a regular grid output topology and initialise prototypes.</span>
+<span class="sd">    Set a regular grid output topology and initialize prototypes.</span>
 
 <span class="sd">    Wipes any existing architecture (W, embed, recaller, learn_history_,</span>
 <span class="sd">    etc.) and builds a fresh grid-based configuration. All learning</span>
@@ -2155,7 +2159,7 @@ than data points.</p>
 <span class="sd">        Grid layout. ``&#39;hex&#39;`` uses a hexagonal arrangement (Delaunay</span>
 <span class="sd">        adjacency); ``&#39;rect&#39;`` uses an 8-connected rectangular grid.</span>
 <span class="sd">    W_init : {&#39;random&#39;, &#39;pca&#39;}, default &#39;random&#39;</span>
-<span class="sd">        How to initialise prototype vectors W.</span>
+<span class="sd">        How to initialize prototype vectors W.</span>
 
 <span class="sd">        ``&#39;random&#39;``</span>
 <span class="sd">            Random sample of M rows from X.</span>
@@ -2177,7 +2181,7 @@ than data points.</p>
 <span class="sd">    ------</span>
 <span class="sd">    ValueError</span>
 <span class="sd">        If ``shape`` is not a 2- or 3-tuple, ``coord_init`` or</span>
-<span class="sd">        ``W_init`` are not recognised, or the grid has more neurons</span>
+<span class="sd">        ``W_init`` are not recognized, or the grid has more neurons</span>
 <span class="sd">        than data points.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">coord_init</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;hex&#39;</span><span class="p">,</span> <span class="s1">&#39;rect&#39;</span><span class="p">):</span>
@@ -2196,6 +2200,8 @@ than data points.</p>
         <span class="p">)</span>
 
     <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">X</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;X must be 2-D, got shape </span><span class="si">{</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="p">)</span>
 
     <span class="c1"># Build embedding — grid kind matches coord_init</span>
@@ -2243,7 +2249,7 @@ than data points.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Set a data-driven output topology and initialise prototypes.</p>
+        <p>Set a data-driven output topology and initialize prototypes.</p>
 <p>Wipes any existing architecture (W, embed, recaller, learn_history_,
 etc.) and builds a fresh data-driven configuration. All learning
 parameters (rho schedules, nbr_influence_min, etc.) are inherited from the
@@ -2461,7 +2467,7 @@ initial recall and stored on <code>self.recaller</code>.</p>
             <td>
               <div class="doc-md-description">
                 <p>If <code>coord_dim</code> is not 2 or 3, or if any of <code>coord_init</code>,
-<code>W_init</code>, or <code>coord_topo</code> are not recognised, or M is out
+<code>W_init</code>, or <code>coord_topo</code> are not recognized, or M is out
 of range.</p>
               </div>
             </td>
@@ -2482,10 +2488,7 @@ of range.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">468</span>
-<span class="normal">469</span>
-<span class="normal">470</span>
-<span class="normal">471</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">471</span>
 <span class="normal">472</span>
 <span class="normal">473</span>
 <span class="normal">474</span>
@@ -2627,7 +2630,10 @@ of range.</p>
 <span class="normal">610</span>
 <span class="normal">611</span>
 <span class="normal">612</span>
-<span class="normal">613</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">from_data</span><span class="p">(</span>
+<span class="normal">613</span>
+<span class="normal">614</span>
+<span class="normal">615</span>
+<span class="normal">616</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">from_data</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">X</span><span class="p">,</span>
     <span class="n">M</span><span class="p">,</span>
@@ -2638,7 +2644,7 @@ of range.</p>
     <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Set a data-driven output topology and initialise prototypes.</span>
+<span class="sd">    Set a data-driven output topology and initialize prototypes.</span>
 
 <span class="sd">    Wipes any existing architecture (W, embed, recaller, learn_history_,</span>
 <span class="sd">    etc.) and builds a fresh data-driven configuration. All learning</span>
@@ -2715,7 +2721,7 @@ of range.</p>
 <span class="sd">    ------</span>
 <span class="sd">    ValueError</span>
 <span class="sd">        If ``coord_dim`` is not 2 or 3, or if any of ``coord_init``,</span>
-<span class="sd">        ``W_init``, or ``coord_topo`` are not recognised, or M is out</span>
+<span class="sd">        ``W_init``, or ``coord_topo`` are not recognized, or M is out</span>
 <span class="sd">        of range.</span>
 <span class="sd">    ImportError</span>
 <span class="sd">        If ``W_init=&#39;kmeans&#39;`` and vqlp is not installed.</span>
@@ -2749,7 +2755,7 @@ of range.</p>
     <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
     <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="p">)</span>
 
-    <span class="c1"># Step 1: initialise prototype vectors in high-d</span>
+    <span class="c1"># Step 1: initialize prototype vectors in high-d</span>
     <span class="k">if</span> <span class="n">W_init</span> <span class="o">==</span> <span class="s1">&#39;kmeans&#39;</span><span class="p">:</span>
         <span class="n">W</span> <span class="o">=</span> <span class="n">_init_W_kmeans</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">M</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_state</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>  <span class="c1"># &#39;random&#39;</span>
@@ -2934,10 +2940,7 @@ many epochs. Set to 0 to disable in-training plotting.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">619</span>
-<span class="normal">620</span>
-<span class="normal">621</span>
-<span class="normal">622</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">622</span>
 <span class="normal">623</span>
 <span class="normal">624</span>
 <span class="normal">625</span>
@@ -3018,7 +3021,10 @@ many epochs. Set to 0 to disable in-training plotting.</p>
 <span class="normal">700</span>
 <span class="normal">701</span>
 <span class="normal">702</span>
-<span class="normal">703</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">n_epochs</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">plot_every</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
+<span class="normal">703</span>
+<span class="normal">704</span>
+<span class="normal">705</span>
+<span class="normal">706</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">n_epochs</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">plot_every</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Fit the GTSOM to data X using batch SOM learning.</span>
 
@@ -3056,7 +3062,7 @@ many epochs. Set to 0 to disable in-training plotting.</p>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">W</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-            <span class="s2">&quot;Architecture not initialised. &quot;</span>
+            <span class="s2">&quot;Architecture not initialized. &quot;</span>
             <span class="s2">&quot;Call from_grid() or from_data() before fit().&quot;</span>
         <span class="p">)</span>
 
@@ -3209,10 +3215,7 @@ many epochs. Set to 0 to disable in-training plotting.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">705</span>
-<span class="normal">706</span>
-<span class="normal">707</span>
-<span class="normal">708</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">708</span>
 <span class="normal">709</span>
 <span class="normal">710</span>
 <span class="normal">711</span>
@@ -3238,7 +3241,10 @@ many epochs. Set to 0 to disable in-training plotting.</p>
 <span class="normal">731</span>
 <span class="normal">732</span>
 <span class="normal">733</span>
-<span class="normal">734</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">):</span>
+<span class="normal">734</span>
+<span class="normal">735</span>
+<span class="normal">736</span>
+<span class="normal">737</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Map data points to output coordinates via BMU lookup.</span>
 
@@ -3257,7 +3263,7 @@ many epochs. Set to 0 to disable in-training plotting.</p>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">W</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-            <span class="s2">&quot;Architecture not initialised. &quot;</span>
+            <span class="s2">&quot;Architecture not initialized. &quot;</span>
             <span class="s2">&quot;Call from_grid() or from_data() before transform().&quot;</span>
         <span class="p">)</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">age</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -3282,13 +3288,17 @@ many epochs. Set to 0 to disable in-training plotting.</p>
 
 
 </h3>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">fit_transform</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_kwargs</span><span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">fit_transform</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_epochs</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_kwargs</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
         <p>Fit the GTSOM and return output coordinates.</p>
-<p>Equivalent to calling :meth:<code>fit</code> followed by :meth:<code>transform</code>.</p>
+<p>Equivalent to calling :meth:<code>fit</code> followed by :meth:<code>transform</code>.
+<code>n_epochs</code> must be supplied explicitly; it is passed through to
+:meth:<code>fit</code> along with any additional keyword arguments. Example::</p>
+<div class="highlight"><pre><span></span><code>coords = som.fit_transform(X, n_epochs=100, labels=y, verbose=False)
+</code></pre></div>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -3325,13 +3335,30 @@ many epochs. Set to 0 to disable in-training plotting.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>n_epochs</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of training epochs. Passed to :meth:<code>fit</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>**fit_kwargs</code>
             </td>
             <td>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Passed to :meth:<code>fit</code>.</p>
+                <p>Additional keyword arguments forwarded to :meth:<code>fit</code>
+(e.g. <code>labels</code>, <code>verbose</code>, <code>plot_every</code>).</p>
               </div>
             </td>
             <td>
@@ -3367,10 +3394,7 @@ many epochs. Set to 0 to disable in-training plotting.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">736</span>
-<span class="normal">737</span>
-<span class="normal">738</span>
-<span class="normal">739</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">739</span>
 <span class="normal">740</span>
 <span class="normal">741</span>
 <span class="normal">742</span>
@@ -3384,23 +3408,40 @@ many epochs. Set to 0 to disable in-training plotting.</p>
 <span class="normal">750</span>
 <span class="normal">751</span>
 <span class="normal">752</span>
-<span class="normal">753</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_kwargs</span><span class="p">):</span>
+<span class="normal">753</span>
+<span class="normal">754</span>
+<span class="normal">755</span>
+<span class="normal">756</span>
+<span class="normal">757</span>
+<span class="normal">758</span>
+<span class="normal">759</span>
+<span class="normal">760</span>
+<span class="normal">761</span>
+<span class="normal">762</span>
+<span class="normal">763</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">n_epochs</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Fit the GTSOM and return output coordinates.</span>
 
 <span class="sd">    Equivalent to calling :meth:`fit` followed by :meth:`transform`.</span>
+<span class="sd">    ``n_epochs`` must be supplied explicitly; it is passed through to</span>
+<span class="sd">    :meth:`fit` along with any additional keyword arguments. Example::</span>
+
+<span class="sd">        coords = som.fit_transform(X, n_epochs=100, labels=y, verbose=False)</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    X : array-like, shape (N, d)</span>
+<span class="sd">    n_epochs : int</span>
+<span class="sd">        Number of training epochs. Passed to :meth:`fit`.</span>
 <span class="sd">    **fit_kwargs</span>
-<span class="sd">        Passed to :meth:`fit`.</span>
+<span class="sd">        Additional keyword arguments forwarded to :meth:`fit`</span>
+<span class="sd">        (e.g. ``labels``, ``verbose``, ``plot_every``).</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    coords : np.ndarray, shape (N, embed.dim)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_kwargs</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_epochs</span><span class="o">=</span><span class="n">n_epochs</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_kwargs</span><span class="p">)</span>
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -3421,7 +3462,7 @@ many epochs. Set to 0 to disable in-training plotting.</p>
     <span class="n">cmap</span><span class="o">=</span><span class="s2">&quot;viridis&quot;</span><span class="p">,</span>
     <span class="n">rf_size_log_threshold</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
     <span class="n">legend_pos</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">,</span>
-    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;SOUMAP&quot;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;GTSOM&quot;</span><span class="p">,</span>
     <span class="n">subtitle</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">xlab</span><span class="o">=</span><span class="s2">&quot;SOM$_1$&quot;</span><span class="p">,</span>
     <span class="n">ylab</span><span class="o">=</span><span class="s2">&quot;SOM$_2$&quot;</span><span class="p">,</span>
@@ -3465,7 +3506,7 @@ the object in a notebook to display it inline.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Quantity used to colour neurons.</p>
+                <p>Quantity used to color neurons.</p>
 <p><code>'auto'</code>
     Use <code>'labels'</code> if <code>recaller.WL</code> is available,
     otherwise fall back to <code>'mqe'</code>.
@@ -3550,7 +3591,7 @@ or <code>'none'</code>.</p>
               </div>
             </td>
             <td>
-                  <code>&#39;SOUMAP&#39;</code>
+                  <code>&#39;GTSOM&#39;</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -3673,17 +3714,7 @@ or <code>'none'</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">759</span>
-<span class="normal">760</span>
-<span class="normal">761</span>
-<span class="normal">762</span>
-<span class="normal">763</span>
-<span class="normal">764</span>
-<span class="normal">765</span>
-<span class="normal">766</span>
-<span class="normal">767</span>
-<span class="normal">768</span>
-<span class="normal">769</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">769</span>
 <span class="normal">770</span>
 <span class="normal">771</span>
 <span class="normal">772</span>
@@ -3860,13 +3891,23 @@ or <code>'none'</code>.</p>
 <span class="normal">943</span>
 <span class="normal">944</span>
 <span class="normal">945</span>
-<span class="normal">946</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">plot</span><span class="p">(</span>
+<span class="normal">946</span>
+<span class="normal">947</span>
+<span class="normal">948</span>
+<span class="normal">949</span>
+<span class="normal">950</span>
+<span class="normal">951</span>
+<span class="normal">952</span>
+<span class="normal">953</span>
+<span class="normal">954</span>
+<span class="normal">955</span>
+<span class="normal">956</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">plot</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">color_by</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span>
     <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;viridis&#39;</span><span class="p">,</span>
     <span class="n">rf_size_log_threshold</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
     <span class="n">legend_pos</span><span class="o">=</span><span class="s1">&#39;right&#39;</span><span class="p">,</span>
-    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;SOUMAP&#39;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s1">&#39;GTSOM&#39;</span><span class="p">,</span>
     <span class="n">subtitle</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">xlab</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;SOM$_1$&#39;</span><span class="p">,</span>
     <span class="n">ylab</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;SOM$_2$&#39;</span><span class="p">,</span>
@@ -3891,7 +3932,7 @@ or <code>'none'</code>.</p>
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    color_by : {&#39;auto&#39;, &#39;mqe&#39;, &#39;rfsize&#39;, &#39;labels&#39;}, default &#39;auto&#39;</span>
-<span class="sd">        Quantity used to colour neurons.</span>
+<span class="sd">        Quantity used to color neurons.</span>
 
 <span class="sd">        ``&#39;auto&#39;``</span>
 <span class="sd">            Use ``&#39;labels&#39;`` if ``recaller.WL`` is available,</span>
@@ -3916,7 +3957,7 @@ or <code>'none'</code>.</p>
 <span class="sd">    legend_pos : str, default &#39;right&#39;</span>
 <span class="sd">        Legend / colorbar position. One of ``&#39;right&#39;``, ``&#39;bottom&#39;``,</span>
 <span class="sd">        or ``&#39;none&#39;``.</span>
-<span class="sd">    title : str or None, default &#39;SOUMAP&#39;</span>
+<span class="sd">    title : str or None, default &#39;GTSOM&#39;</span>
 <span class="sd">        Main title line.</span>
 <span class="sd">    subtitle : str or None, default None</span>
 <span class="sd">        Subtitle line. If None, auto-generates ``&#39;Epoch {self.age}&#39;``.</span>
@@ -3940,7 +3981,7 @@ or <code>'none'</code>.</p>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">W</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-            <span class="s2">&quot;Architecture not initialised. &quot;</span>
+            <span class="s2">&quot;Architecture not initialized. &quot;</span>
             <span class="s2">&quot;Call from_grid() or from_data() before plot().&quot;</span>
         <span class="p">)</span>
 
@@ -4068,13 +4109,13 @@ or <code>'none'</code>.</p>
     <div class="doc doc-contents ">
 
         <p>Replace the output-space embedding coordinates and refresh the
-neighbourhood weight matrix atomically.</p>
+neighborhood weight matrix atomically.</p>
 <p>Calls <code>self.embed.update_coords(coords)</code> to validate the new
 positions, rebuild adjacency, and recompute geodesic distances.
 Then immediately recomputes <code>self.nbr_W</code> from the updated
 topology using the current annealing bandwidth
 <code>self.rho_schedule(self.age)</code>, so that the next :meth:<code>fit</code>
-call starts with a consistent neighbourhood structure.</p>
+call starts with a consistent neighborhood structure.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -4172,56 +4213,56 @@ of <code>coords</code> does not match the current embedding shape.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/gtsom.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">952</span>
-<span class="normal">953</span>
-<span class="normal">954</span>
-<span class="normal">955</span>
-<span class="normal">956</span>
-<span class="normal">957</span>
-<span class="normal">958</span>
-<span class="normal">959</span>
-<span class="normal">960</span>
-<span class="normal">961</span>
-<span class="normal">962</span>
-<span class="normal">963</span>
-<span class="normal">964</span>
-<span class="normal">965</span>
-<span class="normal">966</span>
-<span class="normal">967</span>
-<span class="normal">968</span>
-<span class="normal">969</span>
-<span class="normal">970</span>
-<span class="normal">971</span>
-<span class="normal">972</span>
-<span class="normal">973</span>
-<span class="normal">974</span>
-<span class="normal">975</span>
-<span class="normal">976</span>
-<span class="normal">977</span>
-<span class="normal">978</span>
-<span class="normal">979</span>
-<span class="normal">980</span>
-<span class="normal">981</span>
-<span class="normal">982</span>
-<span class="normal">983</span>
-<span class="normal">984</span>
-<span class="normal">985</span>
-<span class="normal">986</span>
-<span class="normal">987</span>
-<span class="normal">988</span>
-<span class="normal">989</span>
-<span class="normal">990</span>
-<span class="normal">991</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_embedding</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coords</span><span class="p">):</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 962</span>
+<span class="normal"> 963</span>
+<span class="normal"> 964</span>
+<span class="normal"> 965</span>
+<span class="normal"> 966</span>
+<span class="normal"> 967</span>
+<span class="normal"> 968</span>
+<span class="normal"> 969</span>
+<span class="normal"> 970</span>
+<span class="normal"> 971</span>
+<span class="normal"> 972</span>
+<span class="normal"> 973</span>
+<span class="normal"> 974</span>
+<span class="normal"> 975</span>
+<span class="normal"> 976</span>
+<span class="normal"> 977</span>
+<span class="normal"> 978</span>
+<span class="normal"> 979</span>
+<span class="normal"> 980</span>
+<span class="normal"> 981</span>
+<span class="normal"> 982</span>
+<span class="normal"> 983</span>
+<span class="normal"> 984</span>
+<span class="normal"> 985</span>
+<span class="normal"> 986</span>
+<span class="normal"> 987</span>
+<span class="normal"> 988</span>
+<span class="normal"> 989</span>
+<span class="normal"> 990</span>
+<span class="normal"> 991</span>
+<span class="normal"> 992</span>
+<span class="normal"> 993</span>
+<span class="normal"> 994</span>
+<span class="normal"> 995</span>
+<span class="normal"> 996</span>
+<span class="normal"> 997</span>
+<span class="normal"> 998</span>
+<span class="normal"> 999</span>
+<span class="normal">1000</span>
+<span class="normal">1001</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_embedding</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coords</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Replace the output-space embedding coordinates and refresh the</span>
-<span class="sd">    neighbourhood weight matrix atomically.</span>
+<span class="sd">    neighborhood weight matrix atomically.</span>
 
 <span class="sd">    Calls ``self.embed.update_coords(coords)`` to validate the new</span>
 <span class="sd">    positions, rebuild adjacency, and recompute geodesic distances.</span>
 <span class="sd">    Then immediately recomputes ``self.nbr_W`` from the updated</span>
 <span class="sd">    topology using the current annealing bandwidth</span>
 <span class="sd">    ``self.rho_schedule(self.age)``, so that the next :meth:`fit`</span>
-<span class="sd">    call starts with a consistent neighbourhood structure.</span>
+<span class="sd">    call starts with a consistent neighborhood structure.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -4242,7 +4283,7 @@ of <code>coords</code> does not match the current embedding shape.</p>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">W</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-            <span class="s2">&quot;Architecture not initialised. &quot;</span>
+            <span class="s2">&quot;Architecture not initialized. &quot;</span>
             <span class="s2">&quot;Call from_grid() or from_data() before update_embedding().&quot;</span>
         <span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">embed</span><span class="o">.</span><span class="n">update_coords</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
@@ -4289,11 +4330,11 @@ of <code>coords</code> does not match the current embedding shape.</p>
 ensuring the final value is respected exactly regardless of how many
 epochs have elapsed.</p>
 <p>Supports both decreasing schedules (<code>final &lt; initial</code>, e.g. annealing
-a neighbourhood bandwidth from broad to narrow) and increasing schedules
-(<code>final &gt; initial</code>, e.g. shifting neighbourhood influence from
+a neighborhood bandwidth from broad to narrow) and increasing schedules
+(<code>final &gt; initial</code>, e.g. shifting neighborhood influence from
 lattice-dominated toward CONN-dominated over training). The direction
 is inferred automatically from the relationship between <code>initial</code>
-and <code>final</code>; the formula and clipping behaviour adapt accordingly.</p>
+and <code>final</code>; the formula and clipping behavior adapt accordingly.</p>
 <p><code>initial</code> and <code>final</code> may be zero. If either is zero it is replaced
 internally by a small positive floor (<code>_ANNEAL_EPS = 1e-8</code>) before
 the formula is applied, keeping the exponential well-defined. The
@@ -4303,7 +4344,7 @@ The resulting schedule is a true exponential in value space — not
 in a translated space — so the curve shape is never distorted by
 the zero-handling.</p>
 <p>Intended for use with any parameter that requires monotonic change
-during training — neighbourhood bandwidth (rho), topology-blending
+during training — neighborhood bandwidth (rho), topology-blending
 weight (nbr_topo_alpha), learning rate, etc.</p>
 
 
@@ -4381,9 +4422,11 @@ constructor is used instead.</p>
     <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">schedule</span> <span class="o">=</span> <span class="n">ExponentialAnneal</span><span class="p">(</span><span class="n">initial</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">final</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">tau</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">schedule</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 <span class="go">5.0</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">schedule</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span>   <span class="c1"># one tau — decayed toward final</span>
-<span class="go">0.549...</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">schedule</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span>  <span class="c1"># far beyond target — clipped at final</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">schedule</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>   <span class="c1"># half a tau — midway through the decay</span>
+<span class="go">1.2247...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">schedule</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span>   <span class="c1"># one full tau — reaches final exactly</span>
+<span class="go">0.3</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">schedule</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span>  <span class="c1"># beyond tau — clipped at final</span>
 <span class="go">0.3</span>
 </code></pre></div>
     <p>Decreasing to zero:</p>
@@ -4418,9 +4461,7 @@ constructor is used instead.</p>
 
                   <details class="quote">
                     <summary>Source code in <code>src/gtsom/utils.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">309</span>
-<span class="normal">310</span>
-<span class="normal">311</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">311</span>
 <span class="normal">312</span>
 <span class="normal">313</span>
 <span class="normal">314</span>
@@ -4466,11 +4507,9 @@ constructor is used instead.</p>
     <span class="c1"># Detect flat schedule (initial == final)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_flat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">final</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_flat</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_increasing</span>   <span class="o">=</span> <span class="kc">False</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">target_epochs</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_increasing</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_increasing</span>   <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">final</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">target_epochs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tau</span> <span class="o">*</span> <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sf</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_si</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_increasing</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">final</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial</span>
 </code></pre></div></td></tr></table></div>
                   </details>
 
@@ -6211,13 +6250,7 @@ nor the embedding dimensionality may change.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/embedding.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">227</span>
-<span class="normal">228</span>
-<span class="normal">229</span>
-<span class="normal">230</span>
-<span class="normal">231</span>
-<span class="normal">232</span>
-<span class="normal">233</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">233</span>
 <span class="normal">234</span>
 <span class="normal">235</span>
 <span class="normal">236</span>
@@ -6227,7 +6260,13 @@ nor the embedding dimensionality may change.</p>
 <span class="normal">240</span>
 <span class="normal">241</span>
 <span class="normal">242</span>
-<span class="normal">243</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">243</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span>
+<span class="normal">247</span>
+<span class="normal">248</span>
+<span class="normal">249</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_delaunay</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">dist_metric</span><span class="o">=</span><span class="s2">&quot;geodesic&quot;</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Construct an Embedding from the Delaunay triangulation of coords.</span>
@@ -6358,13 +6397,7 @@ to be connected for any finite point set in general position.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/embedding.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">245</span>
-<span class="normal">246</span>
-<span class="normal">247</span>
-<span class="normal">248</span>
-<span class="normal">249</span>
-<span class="normal">250</span>
-<span class="normal">251</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">251</span>
 <span class="normal">252</span>
 <span class="normal">253</span>
 <span class="normal">254</span>
@@ -6381,7 +6414,13 @@ to be connected for any finite point set in general position.</p>
 <span class="normal">265</span>
 <span class="normal">266</span>
 <span class="normal">267</span>
-<span class="normal">268</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_gabriel</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">dist_metric</span><span class="o">=</span><span class="s2">&quot;geodesic&quot;</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Construct an Embedding from the Gabriel graph of coords.</span>
@@ -6526,13 +6565,7 @@ avoid the diagonal ambiguity of Delaunay on regular square grids.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/embedding.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">270</span>
-<span class="normal">271</span>
-<span class="normal">272</span>
-<span class="normal">273</span>
-<span class="normal">274</span>
-<span class="normal">275</span>
-<span class="normal">276</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">276</span>
 <span class="normal">277</span>
 <span class="normal">278</span>
 <span class="normal">279</span>
@@ -6565,7 +6598,13 @@ avoid the diagonal ambiguity of Delaunay on regular square grids.</p>
 <span class="normal">306</span>
 <span class="normal">307</span>
 <span class="normal">308</span>
-<span class="normal">309</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">309</span>
+<span class="normal">310</span>
+<span class="normal">311</span>
+<span class="normal">312</span>
+<span class="normal">313</span>
+<span class="normal">314</span>
+<span class="normal">315</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_grid</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;hex&quot;</span><span class="p">,</span> <span class="n">dist_metric</span><span class="o">=</span><span class="s2">&quot;geodesic&quot;</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Construct an Embedding from a regular grid.</span>
@@ -6997,14 +7036,14 @@ structure of the high-dimensional point set <code>X</code>. Designed for use wit
 SOM prototype vectors and their 2-D output-space coordinates, but
 applicable to any matched (high-d, low-d) pair.</p>
 <p>Two families of metrics are available:</p>
-<p><strong>Co-ranking family</strong> (requires <code>pyDRMetrics</code>): measures of neighbourhood
+<p><strong>Co-ranking family</strong> (requires <code>pyDRMetrics</code>): measures of neighborhood
 preservation at local scales, global scales, and across all scales, plus a
 chance-corrected summary (LCMC_AUC) and a trustworthiness summary
 (Trust_AUC). Set <code>compute_coranking=False</code> to skip if <code>pyDRMetrics</code>
 is not installed.</p>
 <p><strong>CONN_WAFL</strong> (requires <code>embed_geodesic_dist</code> and <code>CONN</code>): a CONN-weighted measure of
 embedding folding — how many embedding hops are needed, on average, to
-span each high-d CONN neighbourhood. Requires only numpy/scipy.</p>
+span each high-d CONN neighborhood. Requires only numpy/scipy.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -7368,7 +7407,7 @@ No internal scaling is applied — pass pre-processed arrays if needed.</p>
 
 <span class="sd">    Two families of metrics are available:</span>
 
-<span class="sd">    **Co-ranking family** (requires ``pyDRMetrics``): measures of neighbourhood</span>
+<span class="sd">    **Co-ranking family** (requires ``pyDRMetrics``): measures of neighborhood</span>
 <span class="sd">    preservation at local scales, global scales, and across all scales, plus a</span>
 <span class="sd">    chance-corrected summary (LCMC_AUC) and a trustworthiness summary</span>
 <span class="sd">    (Trust_AUC). Set ``compute_coranking=False`` to skip if ``pyDRMetrics``</span>
@@ -7376,7 +7415,7 @@ No internal scaling is applied — pass pre-processed arrays if needed.</p>
 
 <span class="sd">    **CONN_WAFL** (requires ``embed_geodesic_dist`` and ``CONN``): a CONN-weighted measure of</span>
 <span class="sd">    embedding folding — how many embedding hops are needed, on average, to</span>
-<span class="sd">    span each high-d CONN neighbourhood. Requires only numpy/scipy.</span>
+<span class="sd">    span each high-d CONN neighborhood. Requires only numpy/scipy.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
