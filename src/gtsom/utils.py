@@ -213,11 +213,12 @@ def reduce_coords_random_proj(W, coord_dim, random_state=None):
     return (W.astype(np.float32) @ R)
 
 
-_ANNEAL_EPS = 1.0
-# Additive shift applied to initial and final before the exponential formula,
-# then subtracted from every output. This allows initial or final to be zero
-# without causing division-by-zero or log(0) in the formula. Since the shift
-# cancels exactly on output, its magnitude has no effect on the schedule shape.
+_ANNEAL_EPS = 1e-8
+# Small positive floor applied to initial and final when either is zero.
+# Replaces the old additive-shift approach (which distorted the curve shape)
+# with input clipping: zero values are replaced by _ANNEAL_EPS before the
+# formula is applied, keeping the exponential a true exponential in value
+# space rather than in (value + constant) space.
 
 
 class ExponentialAnneal:
@@ -239,10 +240,14 @@ class ExponentialAnneal:
     is inferred automatically from the relationship between ``initial``
     and ``final``; the formula and clipping behaviour adapt accordingly.
 
-    ``initial`` and ``final`` may be zero. Internally, both are shifted by
-    a small positive constant before the exponential formula is applied, then
-    the shift is subtracted from every output — so the schedule endpoints and
-    shape are exactly as specified regardless of whether zero is used.
+    ``initial`` and ``final`` may be zero. If either is zero it is replaced
+    internally by a small positive floor (``_ANNEAL_EPS = 1e-8``) before
+    the formula is applied, keeping the exponential well-defined. The
+    reported ``self.initial`` / ``self.final`` always reflect the values
+    as supplied by the caller; only the internal computation is clipped.
+    The resulting schedule is a true exponential in value space — not
+    in a translated space — so the curve shape is never distorted by
+    the zero-handling.
 
     Intended for use with any parameter that requires monotonic change
     during training — neighbourhood bandwidth (rho), topology-blending
@@ -310,57 +315,83 @@ class ExponentialAnneal:
             raise ValueError(f"tau must be positive, got {tau}")
 
         self.initial = float(initial)
-        self.final = float(final)
-        self.tau = float(tau)
+        self.final   = float(final)
+        self.tau     = float(tau)
 
-        # Shifted values used in all formula evaluations. The shift cancels
-        # exactly on output so has no effect on the schedule shape or endpoints.
-        self._si = self.initial + _ANNEAL_EPS
-        self._sf = self.final   + _ANNEAL_EPS
+        # Internal clipped values: replace zero with _ANNEAL_EPS so that
+        # the ratio (sf/si) and log(sf/si) are always well-defined.
+        # Unlike the old additive-shift approach, this does not distort
+        # the curve shape for non-zero parameters.
+        self._si = max(self.initial, _ANNEAL_EPS)
+        self._sf = max(self.final,   _ANNEAL_EPS)
 
-        # Detect flat schedule (initial == final); skip direction and
-        # target_epochs calculations that would involve log(1) = 0.
+        # Detect flat schedule (initial == final)
         self._flat = self.initial == self.final
         if self._flat:
-            self._increasing   = False   # unused, but defined for consistency
+            self._increasing   = False
             self.target_epochs = 0.0
         else:
-            # Infer direction from initial and final values
-            self._increasing = self.final > self.initial
-            # Age at which the raw exponential first reaches final.
-            # abs() ensures positive regardless of direction.
+            self._increasing   = self.final > self.initial
             self.target_epochs = self.tau * abs(np.log(self._sf / self._si))
 
     @classmethod
     def from_halflife(cls, initial, final, halflife_epochs):
         """
-        Construct a schedule where ``halflife_epochs`` is the half-life.
+        Construct a schedule where ``halflife_epochs`` is the geometric half-life.
 
-        ``halflife_epochs`` is the number of epochs at which the parameter
-        reaches the geometric midpoint between ``initial`` and ``final`` on
-        a log scale — i.e. ``sqrt(initial * final)``. This is the true
-        half-life of the decay in log space.
+        ``halflife_epochs`` is the epoch at which the parameter reaches the
+        **geometric mean** of ``initial`` and ``final``::
 
-        The schedule continues decaying beyond this point and is clipped at
-        ``final`` at ``2 * halflife_epochs``, so the parameter has fully
-        settled by that point.
+            value(halflife_epochs) = sqrt(initial * final)
 
-        This gives an intuitive two-phase interpretation:
-          - Phase 1 (0 → halflife_epochs): active decay, halfway there in log space.
-          - Phase 2 (halflife_epochs → 2*halflife_epochs): second half of decay,
-            settling toward ``final``.
-          - Beyond 2*halflife_epochs: clipped at ``final``.
+        This is a half-life in **log space** (the schedule is linear in
+        log space, and the geometric mean is the arithmetic midpoint of
+        ``log(initial)`` and ``log(final)``), not in linear space.
+
+        .. note:: **Geometric vs arithmetic midpoint**
+
+            The geometric midpoint ``sqrt(initial * final)`` is always
+            closer to ``final`` than the arithmetic midpoint
+            ``(initial + final) / 2`` when ``initial != final``. For
+            example, with ``initial=10, final=0.1``:
+
+            - Arithmetic midpoint: 5.05  (barely moved from initial)
+            - Geometric midpoint:  1.0   (already close to final)
+
+            This means the schedule will feel "fast then slow" in linear
+            space — the parameter drops quickly early on and then settles
+            gradually. If you expect to be "halfway there" in the ordinary
+            (arithmetic) sense at ``halflife_epochs``, you will find the
+            parameter has already moved further than that.
+
+        .. note:: **Relationship to tau and total training epochs**
+
+            ``tau = 2 * halflife_epochs``, and the schedule is clipped at
+            ``final`` at age ``2 * halflife_epochs``. This means:
+
+            - Setting ``halflife_epochs ≈ n_epochs / 4`` places the
+              geometric midpoint at the first quarter of training, giving
+              a steep initial drop followed by a long flat tail — the
+              classic exponential shape.
+            - Setting ``halflife_epochs ≈ n_epochs / 2`` places the
+              geometric midpoint at the halfway point, so the schedule is
+              still actively decaying at the end of training and the curve
+              looks nearly linear over the training window.
+
+            As a rule of thumb, set ``halflife_epochs`` to roughly a
+            quarter of your total training epochs to get a visually
+            exponential decay with a clear knee and flat tail.
 
         Parameters
         ----------
         initial : float
             Starting value at age=0.
         final : float
-            Floor value; clipped at this value from age ``2 *
-            halflife_epochs`` onward.
+            Floor value; clipped at this value from age
+            ``2 * halflife_epochs`` onward.
         halflife_epochs : float
-            The age at which the parameter reaches the geometric midpoint
-            ``sqrt(initial * final)``.
+            The epoch at which the parameter reaches the geometric mean
+            ``sqrt(initial * final)``. Must be positive.
 
         Returns
         -------
@@ -372,10 +403,19 @@ class ExponentialAnneal:
         ...                                      halflife_epochs=50)
         >>> round(s(0), 4)
         3.0
-        >>> round(s(50), 4)   # geometric midpoint of 3.0 and 0.3
+        >>> round(s(50), 4)   # geometric midpoint sqrt(3.0 * 0.3) ≈ 0.9487
         0.9487
         >>> round(s(100), 4)  # clipped at final
         0.3
+
+        With halflife_epochs = n_epochs / 4 for a classic exponential shape:
+
+        >>> s = ExponentialAnneal.from_halflife(initial=10.0, final=0.1,
+        ...                                      halflife_epochs=25)
+        >>> round(s(25), 4)   # geometric midpoint sqrt(10 * 0.1) = 1.0
+        1.0
+        >>> round(s(50), 4)   # clipped at final well before end of training
+        0.1
         """
         if halflife_epochs <= 0:
             raise ValueError(
@@ -393,11 +433,6 @@ class ExponentialAnneal:
         """
         Return the annealed parameter value at the given age.
 
-        Returns ``final`` immediately for flat schedules (``initial ==
-        final``). Otherwise the raw exponential is clipped at ``final``
-        once the schedule reaches it, with clip direction inferred from
-        whether the schedule is increasing or decreasing.
-
         Parameters
         ----------
         age : int or float
@@ -409,7 +444,7 @@ class ExponentialAnneal:
         """
         if self._flat:
             return self.final
-        raw = self._si * (self._sf / self._si) ** (age / self.tau) - _ANNEAL_EPS
+        raw = self._si * (self._sf / self._si) ** (age / self.tau)
         if self._increasing:
             return float(min(raw, self.final))
         else:
@@ -433,7 +468,7 @@ class ExponentialAnneal:
         if self._flat:
             return np.full(n_epochs, self.final)
         ages = np.arange(n_epochs, dtype=float)
-        raw = self._si * (self._sf / self._si) ** (ages / self.tau) - _ANNEAL_EPS
+        raw  = self._si * (self._sf / self._si) ** (ages / self.tau)
         if self._increasing:
             return np.minimum(raw, self.final).astype(float)
         else:
