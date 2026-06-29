@@ -4294,10 +4294,14 @@ a neighbourhood bandwidth from broad to narrow) and increasing schedules
 lattice-dominated toward CONN-dominated over training). The direction
 is inferred automatically from the relationship between <code>initial</code>
 and <code>final</code>; the formula and clipping behaviour adapt accordingly.</p>
-<p><code>initial</code> and <code>final</code> may be zero. Internally, both are shifted by
-a small positive constant before the exponential formula is applied, then
-the shift is subtracted from every output — so the schedule endpoints and
-shape are exactly as specified regardless of whether zero is used.</p>
+<p><code>initial</code> and <code>final</code> may be zero. If either is zero it is replaced
+internally by a small positive floor (<code>_ANNEAL_EPS = 1e-8</code>) before
+the formula is applied, keeping the exponential well-defined. The
+reported <code>self.initial</code> / <code>self.final</code> always reflect the values
+as supplied by the caller; only the internal computation is clipped.
+The resulting schedule is a true exponential in value space — not
+in a translated space — so the curve shape is never distorted by
+the zero-handling.</p>
 <p>Intended for use with any parameter that requires monotonic change
 during training — neighbourhood bandwidth (rho), topology-blending
 weight (nbr_topo_alpha), learning rate, etc.</p>
@@ -4414,12 +4418,7 @@ constructor is used instead.</p>
 
                   <details class="quote">
                     <summary>Source code in <code>src/gtsom/utils.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">304</span>
-<span class="normal">305</span>
-<span class="normal">306</span>
-<span class="normal">307</span>
-<span class="normal">308</span>
-<span class="normal">309</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">309</span>
 <span class="normal">310</span>
 <span class="normal">311</span>
 <span class="normal">312</span>
@@ -4442,7 +4441,10 @@ constructor is used instead.</p>
 <span class="normal">329</span>
 <span class="normal">330</span>
 <span class="normal">331</span>
-<span class="normal">332</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial</span><span class="p">,</span> <span class="n">final</span><span class="p">,</span> <span class="n">tau</span><span class="p">):</span>
+<span class="normal">332</span>
+<span class="normal">333</span>
+<span class="normal">334</span>
+<span class="normal">335</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial</span><span class="p">,</span> <span class="n">final</span><span class="p">,</span> <span class="n">tau</span><span class="p">):</span>
     <span class="k">if</span> <span class="n">initial</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;initial must be &gt;= 0, got </span><span class="si">{</span><span class="n">initial</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">final</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
@@ -4451,25 +4453,23 @@ constructor is used instead.</p>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;tau must be positive, got </span><span class="si">{</span><span class="n">tau</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">initial</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">initial</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">final</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">final</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">tau</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">tau</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">final</span>   <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">final</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tau</span>     <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">tau</span><span class="p">)</span>
 
-    <span class="c1"># Shifted values used in all formula evaluations. The shift cancels</span>
-    <span class="c1"># exactly on output so has no effect on the schedule shape or endpoints.</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_si</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial</span> <span class="o">+</span> <span class="n">_ANNEAL_EPS</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">_sf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">final</span>   <span class="o">+</span> <span class="n">_ANNEAL_EPS</span>
+    <span class="c1"># Internal clipped values: replace zero with _ANNEAL_EPS so that</span>
+    <span class="c1"># the ratio (sf/si) and log(sf/si) are always well-defined.</span>
+    <span class="c1"># Unlike the old additive-shift approach, this does not distort</span>
+    <span class="c1"># the curve shape for non-zero parameters.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_si</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">initial</span><span class="p">,</span> <span class="n">_ANNEAL_EPS</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_sf</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">final</span><span class="p">,</span>   <span class="n">_ANNEAL_EPS</span><span class="p">)</span>
 
-    <span class="c1"># Detect flat schedule (initial == final); skip direction and</span>
-    <span class="c1"># target_epochs calculations that would involve log(1) = 0.</span>
+    <span class="c1"># Detect flat schedule (initial == final)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_flat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">final</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_flat</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_increasing</span>   <span class="o">=</span> <span class="kc">False</span>   <span class="c1"># unused, but defined for consistency</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_increasing</span>   <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">target_epochs</span> <span class="o">=</span> <span class="mf">0.0</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="c1"># Infer direction from initial and final values</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_increasing</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">final</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial</span>
-        <span class="c1"># Age at which the raw exponential first reaches final.</span>
-        <span class="c1"># abs() ensures positive regardless of direction.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_increasing</span>   <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">final</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">target_epochs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tau</span> <span class="o">*</span> <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sf</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_si</span><span class="p">))</span>
 </code></pre></div></td></tr></table></div>
                   </details>
@@ -4504,19 +4504,46 @@ constructor is used instead.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Construct a schedule where <code>halflife_epochs</code> is the half-life.</p>
-<p><code>halflife_epochs</code> is the number of epochs at which the parameter
-reaches the geometric midpoint between <code>initial</code> and <code>final</code> on
-a log scale — i.e. <code>sqrt(initial * final)</code>. This is the true
-half-life of the decay in log space.</p>
-<p>The schedule continues decaying beyond this point and is clipped at
-<code>final</code> at <code>2 * halflife_epochs</code>, so the parameter has fully
-settled by that point.</p>
-<p>This gives an intuitive two-phase interpretation:
-  - Phase 1 (0 → halflife_epochs): active decay, halfway there in log space.
-  - Phase 2 (halflife_epochs → 2<em>halflife_epochs): second half of decay,
-    settling toward <code>final</code>.
-  - Beyond 2</em>halflife_epochs: clipped at <code>final</code>.</p>
+        <p>Construct a schedule where <code>halflife_epochs</code> is the geometric half-life.</p>
+<p><code>halflife_epochs</code> is the epoch at which the parameter reaches the
+<strong>geometric mean</strong> of <code>initial</code> and <code>final</code>::</p>
+<div class="highlight"><pre><span></span><code>value(halflife_epochs) = sqrt(initial * final)
+</code></pre></div>
+<p>This is a half-life in <strong>log space</strong> (the schedule is linear in
+log space, and the geometric mean is the arithmetic midpoint of
+<code>log(initial)</code> and <code>log(final)</code>), not in linear space.</p>
+<p>.. note:: <strong>Geometric vs arithmetic midpoint</strong></p>
+<div class="highlight"><pre><span></span><code>The geometric midpoint ``sqrt(initial * final)`` is always
+closer to ``final`` than the arithmetic midpoint
+``(initial + final) / 2`` when ``initial != final``. For
+example, with ``initial=10, final=0.1``:
+
+- Arithmetic midpoint: 5.05  (barely moved from initial)
+- Geometric midpoint:  1.0   (already close to final)
+
+This means the schedule will feel &quot;fast then slow&quot; in linear
+space — the parameter drops quickly early on and then settles
+gradually. If you expect to be &quot;halfway there&quot; in the ordinary
+(arithmetic) sense at ``halflife_epochs``, you will find the
+parameter has already moved further than that.
+</code></pre></div>
+<p>.. note:: <strong>Relationship to tau and total training epochs</strong></p>
+<div class="highlight"><pre><span></span><code>``tau = 2 * halflife_epochs``, and the schedule is clipped at
+``final`` at age ``2 * halflife_epochs``. This means:
+
+- Setting ``halflife_epochs ≈ n_epochs / 4`` places the
+  geometric midpoint at the first quarter of training, giving
+  a steep initial drop followed by a long flat tail — the
+  classic exponential shape.
+- Setting ``halflife_epochs ≈ n_epochs / 2`` places the
+  geometric midpoint at the halfway point, so the schedule is
+  still actively decaying at the end of training and the curve
+  looks nearly linear over the training window.
+
+As a rule of thumb, set ``halflife_epochs`` to roughly a
+quarter of your total training epochs to get a visually
+exponential decay with a clear knee and flat tail.
+</code></pre></div>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -4555,8 +4582,8 @@ settled by that point.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Floor value; clipped at this value from age <code>2 *
-halflife_epochs</code> onward.</p>
+                <p>Floor value; clipped at this value from age
+<code>2 * halflife_epochs</code> onward.</p>
               </div>
             </td>
             <td>
@@ -4572,8 +4599,8 @@ halflife_epochs</code> onward.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The age at which the parameter reaches the geometric midpoint
-<code>sqrt(initial * final)</code>.</p>
+                <p>The epoch at which the parameter reaches the geometric mean
+<code>sqrt(initial * final)</code>. Must be positive.</p>
               </div>
             </td>
             <td>
@@ -4612,19 +4639,24 @@ halflife_epochs</code> onward.</p>
 <span class="gp">... </span>                                     <span class="n">halflife_epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="nb">round</span><span class="p">(</span><span class="n">s</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>
 <span class="go">3.0</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="nb">round</span><span class="p">(</span><span class="n">s</span><span class="p">(</span><span class="mi">50</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>   <span class="c1"># geometric midpoint of 3.0 and 0.3</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">round</span><span class="p">(</span><span class="n">s</span><span class="p">(</span><span class="mi">50</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>   <span class="c1"># geometric midpoint sqrt(3.0 * 0.3) ≈ 0.9487</span>
 <span class="go">0.9487</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="nb">round</span><span class="p">(</span><span class="n">s</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>  <span class="c1"># clipped at final</span>
 <span class="go">0.3</span>
+</code></pre></div>
+    <p>With halflife_epochs = n_epochs / 4 for a classic exponential shape:</p>
+    <div class="highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">ExponentialAnneal</span><span class="o">.</span><span class="n">from_halflife</span><span class="p">(</span><span class="n">initial</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">final</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+<span class="gp">... </span>                                     <span class="n">halflife_epochs</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">round</span><span class="p">(</span><span class="n">s</span><span class="p">(</span><span class="mi">25</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>   <span class="c1"># geometric midpoint sqrt(10 * 0.1) = 1.0</span>
+<span class="go">1.0</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">round</span><span class="p">(</span><span class="n">s</span><span class="p">(</span><span class="mi">50</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>   <span class="c1"># clipped at final well before end of training</span>
+<span class="go">0.1</span>
 </code></pre></div>
 
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">334</span>
-<span class="normal">335</span>
-<span class="normal">336</span>
-<span class="normal">337</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">337</span>
 <span class="normal">338</span>
 <span class="normal">339</span>
 <span class="normal">340</span>
@@ -4677,36 +4709,104 @@ halflife_epochs</code> onward.</p>
 <span class="normal">387</span>
 <span class="normal">388</span>
 <span class="normal">389</span>
-<span class="normal">390</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">390</span>
+<span class="normal">391</span>
+<span class="normal">392</span>
+<span class="normal">393</span>
+<span class="normal">394</span>
+<span class="normal">395</span>
+<span class="normal">396</span>
+<span class="normal">397</span>
+<span class="normal">398</span>
+<span class="normal">399</span>
+<span class="normal">400</span>
+<span class="normal">401</span>
+<span class="normal">402</span>
+<span class="normal">403</span>
+<span class="normal">404</span>
+<span class="normal">405</span>
+<span class="normal">406</span>
+<span class="normal">407</span>
+<span class="normal">408</span>
+<span class="normal">409</span>
+<span class="normal">410</span>
+<span class="normal">411</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span>
+<span class="normal">417</span>
+<span class="normal">418</span>
+<span class="normal">419</span>
+<span class="normal">420</span>
+<span class="normal">421</span>
+<span class="normal">422</span>
+<span class="normal">423</span>
+<span class="normal">424</span>
+<span class="normal">425</span>
+<span class="normal">426</span>
+<span class="normal">427</span>
+<span class="normal">428</span>
+<span class="normal">429</span>
+<span class="normal">430</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_halflife</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">initial</span><span class="p">,</span> <span class="n">final</span><span class="p">,</span> <span class="n">halflife_epochs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Construct a schedule where ``halflife_epochs`` is the half-life.</span>
+<span class="sd">    Construct a schedule where ``halflife_epochs`` is the geometric half-life.</span>
 
-<span class="sd">    ``halflife_epochs`` is the number of epochs at which the parameter</span>
-<span class="sd">    reaches the geometric midpoint between ``initial`` and ``final`` on</span>
-<span class="sd">    a log scale — i.e. ``sqrt(initial * final)``. This is the true</span>
-<span class="sd">    half-life of the decay in log space.</span>
+<span class="sd">    ``halflife_epochs`` is the epoch at which the parameter reaches the</span>
+<span class="sd">    **geometric mean** of ``initial`` and ``final``::</span>
 
-<span class="sd">    The schedule continues decaying beyond this point and is clipped at</span>
-<span class="sd">    ``final`` at ``2 * halflife_epochs``, so the parameter has fully</span>
-<span class="sd">    settled by that point.</span>
+<span class="sd">        value(halflife_epochs) = sqrt(initial * final)</span>
 
-<span class="sd">    This gives an intuitive two-phase interpretation:</span>
-<span class="sd">      - Phase 1 (0 → halflife_epochs): active decay, halfway there in log space.</span>
-<span class="sd">      - Phase 2 (halflife_epochs → 2*halflife_epochs): second half of decay,</span>
-<span class="sd">        settling toward ``final``.</span>
-<span class="sd">      - Beyond 2*halflife_epochs: clipped at ``final``.</span>
+<span class="sd">    This is a half-life in **log space** (the schedule is linear in</span>
+<span class="sd">    log space, and the geometric mean is the arithmetic midpoint of</span>
+<span class="sd">    ``log(initial)`` and ``log(final)``), not in linear space.</span>
+
+<span class="sd">    .. note:: **Geometric vs arithmetic midpoint**</span>
+
+<span class="sd">        The geometric midpoint ``sqrt(initial * final)`` is always</span>
+<span class="sd">        closer to ``final`` than the arithmetic midpoint</span>
+<span class="sd">        ``(initial + final) / 2`` when ``initial != final``. For</span>
+<span class="sd">        example, with ``initial=10, final=0.1``:</span>
+
+<span class="sd">        - Arithmetic midpoint: 5.05  (barely moved from initial)</span>
+<span class="sd">        - Geometric midpoint:  1.0   (already close to final)</span>
+
+<span class="sd">        This means the schedule will feel &quot;fast then slow&quot; in linear</span>
+<span class="sd">        space — the parameter drops quickly early on and then settles</span>
+<span class="sd">        gradually. If you expect to be &quot;halfway there&quot; in the ordinary</span>
+<span class="sd">        (arithmetic) sense at ``halflife_epochs``, you will find the</span>
+<span class="sd">        parameter has already moved further than that.</span>
+
+<span class="sd">    .. note:: **Relationship to tau and total training epochs**</span>
+
+<span class="sd">        ``tau = 2 * halflife_epochs``, and the schedule is clipped at</span>
+<span class="sd">        ``final`` at age ``2 * halflife_epochs``. This means:</span>
+
+<span class="sd">        - Setting ``halflife_epochs ≈ n_epochs / 4`` places the</span>
+<span class="sd">          geometric midpoint at the first quarter of training, giving</span>
+<span class="sd">          a steep initial drop followed by a long flat tail — the</span>
+<span class="sd">          classic exponential shape.</span>
+<span class="sd">        - Setting ``halflife_epochs ≈ n_epochs / 2`` places the</span>
+<span class="sd">          geometric midpoint at the halfway point, so the schedule is</span>
+<span class="sd">          still actively decaying at the end of training and the curve</span>
+<span class="sd">          looks nearly linear over the training window.</span>
+
+<span class="sd">        As a rule of thumb, set ``halflife_epochs`` to roughly a</span>
+<span class="sd">        quarter of your total training epochs to get a visually</span>
+<span class="sd">        exponential decay with a clear knee and flat tail.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    initial : float</span>
 <span class="sd">        Starting value at age=0.</span>
 <span class="sd">    final : float</span>
-<span class="sd">        Floor value; clipped at this value from age ``2 *</span>
-<span class="sd">        halflife_epochs`` onward.</span>
+<span class="sd">        Floor value; clipped at this value from age</span>
+<span class="sd">        ``2 * halflife_epochs`` onward.</span>
 <span class="sd">    halflife_epochs : float</span>
-<span class="sd">        The age at which the parameter reaches the geometric midpoint</span>
-<span class="sd">        ``sqrt(initial * final)``.</span>
+<span class="sd">        The epoch at which the parameter reaches the geometric mean</span>
+<span class="sd">        ``sqrt(initial * final)``. Must be positive.</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -4718,10 +4818,19 @@ halflife_epochs</code> onward.</p>
 <span class="sd">    ...                                      halflife_epochs=50)</span>
 <span class="sd">    &gt;&gt;&gt; round(s(0), 4)</span>
 <span class="sd">    3.0</span>
-<span class="sd">    &gt;&gt;&gt; round(s(50), 4)   # geometric midpoint of 3.0 and 0.3</span>
+<span class="sd">    &gt;&gt;&gt; round(s(50), 4)   # geometric midpoint sqrt(3.0 * 0.3) ≈ 0.9487</span>
 <span class="sd">    0.9487</span>
 <span class="sd">    &gt;&gt;&gt; round(s(100), 4)  # clipped at final</span>
 <span class="sd">    0.3</span>
+
+<span class="sd">    With halflife_epochs = n_epochs / 4 for a classic exponential shape:</span>
+
+<span class="sd">    &gt;&gt;&gt; s = ExponentialAnneal.from_halflife(initial=10.0, final=0.1,</span>
+<span class="sd">    ...                                      halflife_epochs=25)</span>
+<span class="sd">    &gt;&gt;&gt; round(s(25), 4)   # geometric midpoint sqrt(10 * 0.1) = 1.0</span>
+<span class="sd">    1.0</span>
+<span class="sd">    &gt;&gt;&gt; round(s(50), 4)   # clipped at final well before end of training</span>
+<span class="sd">    0.1</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">halflife_epochs</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -4754,10 +4863,6 @@ halflife_epochs</code> onward.</p>
     <div class="doc doc-contents ">
 
         <p>Return the annealed parameter value at the given age.</p>
-<p>Returns <code>final</code> immediately for flat schedules (<code>initial ==
-final</code>). Otherwise the raw exponential is clipped at <code>final</code>
-once the schedule reaches it, with clip direction inferred from
-whether the schedule is increasing or decreasing.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -4816,38 +4921,28 @@ whether the schedule is increasing or decreasing.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">392</span>
-<span class="normal">393</span>
-<span class="normal">394</span>
-<span class="normal">395</span>
-<span class="normal">396</span>
-<span class="normal">397</span>
-<span class="normal">398</span>
-<span class="normal">399</span>
-<span class="normal">400</span>
-<span class="normal">401</span>
-<span class="normal">402</span>
-<span class="normal">403</span>
-<span class="normal">404</span>
-<span class="normal">405</span>
-<span class="normal">406</span>
-<span class="normal">407</span>
-<span class="normal">408</span>
-<span class="normal">409</span>
-<span class="normal">410</span>
-<span class="normal">411</span>
-<span class="normal">412</span>
-<span class="normal">413</span>
-<span class="normal">414</span>
-<span class="normal">415</span>
-<span class="normal">416</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">age</span><span class="p">):</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">432</span>
+<span class="normal">433</span>
+<span class="normal">434</span>
+<span class="normal">435</span>
+<span class="normal">436</span>
+<span class="normal">437</span>
+<span class="normal">438</span>
+<span class="normal">439</span>
+<span class="normal">440</span>
+<span class="normal">441</span>
+<span class="normal">442</span>
+<span class="normal">443</span>
+<span class="normal">444</span>
+<span class="normal">445</span>
+<span class="normal">446</span>
+<span class="normal">447</span>
+<span class="normal">448</span>
+<span class="normal">449</span>
+<span class="normal">450</span>
+<span class="normal">451</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">age</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Return the annealed parameter value at the given age.</span>
-
-<span class="sd">    Returns ``final`` immediately for flat schedules (``initial ==</span>
-<span class="sd">    final``). Otherwise the raw exponential is clipped at ``final``</span>
-<span class="sd">    once the schedule reaches it, with clip direction inferred from</span>
-<span class="sd">    whether the schedule is increasing or decreasing.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -4860,7 +4955,7 @@ whether the schedule is increasing or decreasing.</p>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_flat</span><span class="p">:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">final</span>
-    <span class="n">raw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_si</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sf</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_si</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">age</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">tau</span><span class="p">)</span> <span class="o">-</span> <span class="n">_ANNEAL_EPS</span>
+    <span class="n">raw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_si</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sf</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_si</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">age</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">tau</span><span class="p">)</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_increasing</span><span class="p">:</span>
         <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">final</span><span class="p">))</span>
     <span class="k">else</span><span class="p">:</span>
@@ -4945,29 +5040,29 @@ training begins.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/gtsom/utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">418</span>
-<span class="normal">419</span>
-<span class="normal">420</span>
-<span class="normal">421</span>
-<span class="normal">422</span>
-<span class="normal">423</span>
-<span class="normal">424</span>
-<span class="normal">425</span>
-<span class="normal">426</span>
-<span class="normal">427</span>
-<span class="normal">428</span>
-<span class="normal">429</span>
-<span class="normal">430</span>
-<span class="normal">431</span>
-<span class="normal">432</span>
-<span class="normal">433</span>
-<span class="normal">434</span>
-<span class="normal">435</span>
-<span class="normal">436</span>
-<span class="normal">437</span>
-<span class="normal">438</span>
-<span class="normal">439</span>
-<span class="normal">440</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_epochs</span><span class="p">):</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">453</span>
+<span class="normal">454</span>
+<span class="normal">455</span>
+<span class="normal">456</span>
+<span class="normal">457</span>
+<span class="normal">458</span>
+<span class="normal">459</span>
+<span class="normal">460</span>
+<span class="normal">461</span>
+<span class="normal">462</span>
+<span class="normal">463</span>
+<span class="normal">464</span>
+<span class="normal">465</span>
+<span class="normal">466</span>
+<span class="normal">467</span>
+<span class="normal">468</span>
+<span class="normal">469</span>
+<span class="normal">470</span>
+<span class="normal">471</span>
+<span class="normal">472</span>
+<span class="normal">473</span>
+<span class="normal">474</span>
+<span class="normal">475</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_epochs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Return the annealed values for epochs 0 through n_epochs - 1.</span>
 
@@ -4985,7 +5080,7 @@ training begins.</p>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_flat</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n_epochs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">final</span><span class="p">)</span>
     <span class="n">ages</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n_epochs</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
-    <span class="n">raw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_si</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sf</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_si</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">ages</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">tau</span><span class="p">)</span> <span class="o">-</span> <span class="n">_ANNEAL_EPS</span>
+    <span class="n">raw</span>  <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_si</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sf</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_si</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">ages</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">tau</span><span class="p">)</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_increasing</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">final</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
