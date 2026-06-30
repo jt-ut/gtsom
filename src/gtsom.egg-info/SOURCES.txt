@@ -1,0 +1,17 @@
+LICENSE
+README.md
+pyproject.toml
+src/gtsom/__init__.py
+src/gtsom/embedding.py
+src/gtsom/gtsom.py
+src/gtsom/kernel.py
+src/gtsom/parallel.py
+src/gtsom/utils.py
+src/gtsom.egg-info/PKG-INFO
+src/gtsom.egg-info/SOURCES.txt
+src/gtsom.egg-info/dependency_links.txt
+src/gtsom.egg-info/requires.txt
+src/gtsom.egg-info/top_level.txt
+src/gtsom/archive/embedding_b4_update_coords.py
+src/gtsom/archive/gtsom_b4_fit.py
+src/gtsom/archive/gtsom_b4_parallel_numba.py

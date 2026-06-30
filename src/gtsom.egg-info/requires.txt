@@ -1,0 +1,10 @@
+numpy
+scipy
+faiss-cpu
+
+[dev]
+pytest
+pytest-cov
+
+[parallel]
+numba>=0.55
