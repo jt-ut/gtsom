@@ -14,7 +14,7 @@
         <link rel="prev" href="..">
       
       
-        <link rel="next" href="../api/">
+        <link rel="next" href="../gtsom_blobs_tutorial/">
       
       
         
@@ -624,6 +624,33 @@
   
 </nav>
       
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gtsom_blobs_tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GTSOM Tutorial: General Topology Learning on Synthetic Blobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -2518,7 +2545,7 @@ print(f'Empty RFs after training: {(som.recaller.RFSize == 0).sum()} / {som.M}')
   -----   ------   ------   --------   -------
   -----   ------   ------   --------   -------
 
-Final state: GTSOM(M=400, d=50, embed_dim=2, fitted=True, age=200, snapshots=201, backend='numba', n_jobs=16, nbr_influence_min=0.01, proto_topo='CONN_GD', alpha_schedule=ExponentialAnneal(initial=1.0, final=1.0, tau=200, flat=True), compute_dr_metrics=True, train_time=142.218s)
+Final state: GTSOM(M=400, d=50, embed_dim=2, fitted=True, age=200, snapshots=201, backend='numba', n_jobs=16, nbr_influence_min=0.01, proto_topo='CONN_GD', alpha_schedule=ExponentialAnneal(initial=1.0, final=1.0, tau=200, flat=True), compute_dr_metrics=True, train_time=143.837s)
 Empty RFs after training: 0 / 400
 </pre>
 </div>
@@ -2716,15 +2743,15 @@ plt.show()</div>
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>/usr/local/lib/python3.9/site-packages/plotnine/ggplot.py:606: PlotnineWarning: Saving 6 x 5 in image.
-/usr/local/lib/python3.9/site-packages/plotnine/ggplot.py:607: PlotnineWarning: Filename: &lt;_io.BytesIO object at 0x13f7b26d0&gt;
+/usr/local/lib/python3.9/site-packages/plotnine/ggplot.py:607: PlotnineWarning: Filename: &lt;_io.BytesIO object at 0x13fd887c0&gt;
 /usr/local/lib/python3.9/site-packages/plotnine/ggplot.py:606: PlotnineWarning: Saving 6 x 5 in image.
-/usr/local/lib/python3.9/site-packages/plotnine/ggplot.py:607: PlotnineWarning: Filename: &lt;_io.BytesIO object at 0x13f4f56d0&gt;
+/usr/local/lib/python3.9/site-packages/plotnine/ggplot.py:607: PlotnineWarning: Filename: &lt;_io.BytesIO object at 0x13fdd67c0&gt;
 /usr/local/lib/python3.9/site-packages/pandas/core/arraylike.py:396: RuntimeWarning: divide by zero encountered in log10
 /usr/local/lib/python3.9/site-packages/plotnine/ggplot.py:606: PlotnineWarning: Saving 6 x 5 in image.
-/usr/local/lib/python3.9/site-packages/plotnine/ggplot.py:607: PlotnineWarning: Filename: &lt;_io.BytesIO object at 0x13f8ecdb0&gt;
+/usr/local/lib/python3.9/site-packages/plotnine/ggplot.py:607: PlotnineWarning: Filename: &lt;_io.BytesIO object at 0x13fdbeef0&gt;
 /usr/local/lib/python3.9/site-packages/pandas/core/arraylike.py:396: RuntimeWarning: divide by zero encountered in log10
 /usr/local/lib/python3.9/site-packages/plotnine/ggplot.py:606: PlotnineWarning: Saving 6 x 5 in image.
-/usr/local/lib/python3.9/site-packages/plotnine/ggplot.py:607: PlotnineWarning: Filename: &lt;_io.BytesIO object at 0x13f803f90&gt;
+/usr/local/lib/python3.9/site-packages/plotnine/ggplot.py:607: PlotnineWarning: Filename: &lt;_io.BytesIO object at 0x13fbceb80&gt;
 </pre>
 </div>
 </div>
@@ -3023,7 +3050,7 @@ plt.show()</div>
 </tbody>
 </table>
 <h3 id="next-steps">Next steps<a class="anchor-link" href="#next-steps">¶</a></h3><ul>
-<li><strong>Data-driven topology</strong>: <code>GTSOM.from_data</code> builds the output lattice via Delaunay triangulation of prototype positions in PCA or Laplacian Eigenmap space, allowing the topology to adapt to the data rather than being fixed in advance.</li>
+<li><strong>Data-driven topology</strong>: <code>GTSOM.from_data</code> builds the output lattice via Delaunay triangulation of prototype positions in PCA or Laplacian Eigenmap space, allowing the topology to adapt to the data rather than being fixed in advance. See the companion notebook, <em>GTSOM Tutorial: General Topology Learning on Synthetic Blobs</em>, for a worked example.</li>
 <li><strong>Larger grids</strong>: For exploratory analysis of large datasets, a 30×30 or 40×40 grid provides finer spatial resolution at the cost of longer training time.</li>
 <li><strong>Parallelism</strong>: <code>n_jobs</code>, set in the <code>GTSOM</code> constructor, controls the number of CPU threads used for prototype updates. On multi-core machines, <code>n_jobs=-1</code> (all cores) can reduce training time substantially for large N and d.</li>
 </ul>
