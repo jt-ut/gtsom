@@ -39,7 +39,8 @@ plugins:
 
 nav:
   - Home: index.md
-  - Tutorial: gtsom_mnist_tutorial.ipynb
+  - MNIST Tutorial: gtsom_mnist_tutorial.ipynb
+  - General Topology Tutorial: gtsom_blobs_tutorial.ipynb
   - API Reference: api.md
 
 markdown_extensions:
