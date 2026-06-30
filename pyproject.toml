@@ -6,11 +6,59 @@ build-backend = "setuptools.build_meta"
 name = "gtsom"
 version = "0.1.0"
 description = "General Topology Self-Organizing Map"
+readme = "README.md"
 requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Josh Taylor", email = "joshtaylor@utexas.edu"},
+]
+keywords = [
+    "self-organizing map",
+    "SOM",
+    "topology",
+    "dimensionality reduction",
+    "machine learning",
+    "unsupervised learning",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+
+# NOTE ON vqlp / faiss:
+# gtsom requires vqlp (https://github.com/jt-ut/vqlp) for vector quantization
+# and recall, but vqlp is NOT published on PyPI and cannot be listed here as
+# a normal dependency. It must be installed manually BEFORE installing gtsom:
+#
+#     pip install git+https://github.com/jt-ut/vqlp.git
+#     pip install gtsom
+#
+# See README.md for full installation instructions.
+#
+# vqlp itself depends on faiss (faiss-cpu on PyPI). faiss-cpu is intentionally
+# NOT listed as a direct dependency of gtsom — it is pulled in transitively by
+# vqlp's own install. Listing it here as well would risk install failures on
+# platforms without prebuilt faiss-cpu wheels (e.g. some Apple Silicon
+# configurations) even when vqlp/faiss aren't actually the problem.
+#
+# Visualization dependencies (matplotlib, plotnine, pandas) are listed as
+# hard requirements rather than an optional extra, since visualization is
+# considered a core part of the SOM workflow (see plot(), vis_tools.py).
 dependencies = [
     "numpy",
     "scipy",
-    "faiss-cpu",
+    "scikit-learn",
+    "matplotlib",
+    "plotnine",
+    "pandas",
 ]
 
 [project.optional-dependencies]
@@ -21,6 +69,11 @@ dev = [
 parallel = [
     "numba>=0.55",
 ]
+
+[project.urls]
+Homepage = "https://jt-ut.github.io/gtsom"
+Documentation = "https://jt-ut.github.io/gtsom"
+Repository = "https://github.com/jt-ut/gtsom"
 
 [tool.setuptools.packages.find]
 where = ["src"]
