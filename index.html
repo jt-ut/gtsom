@@ -580,9 +580,7 @@
 pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/jt-ut/gtsom.git
 </code></pre></div>
 <p><code>vqlp</code> itself depends on <a href="https://github.com/facebookresearch/faiss">faiss</a> (<code>faiss-cpu</code> on PyPI). If <code>vqlp</code>'s installation fails on faiss, install <code>faiss-cpu</code> for your platform first — note that prebuilt wheels are not available for all platforms (e.g. some Apple Silicon configurations), in which case consult the <a href="https://github.com/facebookresearch/faiss/blob/main/INSTALL.md">faiss installation instructions</a>.</p>
-<p>For parallel prototype updates (recommended for large datasets):</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;git+https://github.com/jt-ut/gtsom.git[parallel]&quot;</span>
-</code></pre></div>
+<p><code>numba</code> (for parallel prototype updates) is installed automatically as a core dependency.</p>
 <h2 id="quick-start">Quick Start</h2>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_blobs</span>
