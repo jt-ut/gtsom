@@ -30,11 +30,7 @@ pip install git+https://github.com/jt-ut/gtsom.git
 
 `vqlp` itself depends on [faiss](https://github.com/facebookresearch/faiss) (`faiss-cpu` on PyPI). If `vqlp`'s installation fails on faiss, install `faiss-cpu` for your platform first — note that prebuilt wheels are not available for all platforms (e.g. some Apple Silicon configurations), in which case consult the [faiss installation instructions](https://github.com/facebookresearch/faiss/blob/main/INSTALL.md).
 
-For parallel prototype updates (recommended for large datasets):
-
-```bash
-pip install "git+https://github.com/jt-ut/gtsom.git[parallel]"
-```
+`numba` (for parallel prototype updates) is installed automatically as a core dependency.
 
 ## Quick Start
 

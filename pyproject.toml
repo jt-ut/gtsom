@@ -49,25 +49,30 @@ classifiers = [
 # platforms without prebuilt faiss-cpu wheels (e.g. some Apple Silicon
 # configurations) even when vqlp/faiss aren't actually the problem.
 #
-# Visualization dependencies (matplotlib, plotnine, pandas) are listed as
-# hard requirements rather than an optional extra, since visualization is
-# considered a core part of the SOM workflow (see plot(), vis_tools.py).
+# Visualization dependencies (matplotlib, plotnine, pandas) and numba
+# (parallel prototype updates) are listed as hard requirements rather than
+# optional extras, since both visualization and parallel updates are
+# considered core to the intended SOM workflow (see plot(), vis_tools.py,
+# and parallel.py) rather than situational add-ons.
+#
+# plotnine is pinned to >=0.13.6: earlier versions have known plotting bugs
+# that affect gtsom's output and were the source of real issues during
+# development. Do not relax this lower bound without re-verifying against
+# gtsom's plotting code.
 dependencies = [
     "numpy",
     "scipy",
     "scikit-learn",
     "matplotlib",
-    "plotnine",
+    "plotnine>=0.13.6",
     "pandas",
+    "numba>=0.55",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
     "pytest-cov",
-]
-parallel = [
-    "numba>=0.55",
 ]
 
 [project.urls]
