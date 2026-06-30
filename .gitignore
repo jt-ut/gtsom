@@ -16,6 +16,9 @@ venv/
 env/
 .env/
 
+# mkdocs-jupyter build cache
+.cache/
+
 # Numba JIT cache
 __numba_cache__/
 
@@ -55,3 +58,4 @@ src/gtsom/archive/
 # Deploy helpers 
 gitinit.sh 
 gitdeploy.sh 
+gitremakeipynb.sh
