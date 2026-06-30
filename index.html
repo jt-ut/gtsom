@@ -560,24 +560,26 @@
 
 
 <h1 id="gtsom">gtsom</h1>
-<p><strong>General Topology Self-Organising Map</strong> — a Python package for training Self-Organising Maps (SOMs) on arbitrary output space geometries, including hexagonal grids, rectangular grids, and data-driven Delaunay triangulations.</p>
+<p><strong>General Topology Self-Organizing Map</strong> — a Python package for training Self-Organizing Maps (SOMs) on arbitrary output space geometries, including hexagonal grids, rectangular grids, and data-driven Delaunay triangulations.</p>
 <h2 id="overview">Overview</h2>
-<p>A Self-Organising Map projects high-dimensional data onto a low-dimensional output lattice while preserving topological structure — nearby neurons learn to respond to similar inputs. GTSOM extends the classical SOM by allowing any graph structure as the output space, defined either by a regular grid or by the geometry of the data itself.</p>
+<p>A Self-Organizing Map projects high-dimensional data onto a low-dimensional output lattice while preserving topological structure — nearby neurons learn to respond to similar inputs. GTSOM extends the classical SOM by allowing any graph structure as the output space, defined either by a regular grid or by the geometry of the data itself.</p>
 <p>Key features:</p>
 <ul>
 <li>Hexagonal and rectangular grid topologies (<code>GTSOM.from_grid</code>)</li>
 <li>Data-driven Delaunay triangulation topology (<code>GTSOM.from_data</code>)</li>
-<li>Exponential neighbourhood bandwidth annealing</li>
+<li>Exponential neighborhood bandwidth annealing</li>
 <li>Parallel prototype updates via <a href="https://numba.readthedocs.io">numba</a> (optional)</li>
 <li>Per-epoch learning history including MQE, per-prototype MQE, and BMU change rate</li>
-<li>Built-in lattice visualisation with multiple colouring modes</li>
+<li>Built-in lattice visualization with multiple coloring modes</li>
 </ul>
 <h2 id="installation">Installation</h2>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/jt-ut/gtsom.git
 </code></pre></div>
-<p><code>gtsom</code> depends on <a href="https://github.com/jt-ut/vqlp">vqlp</a> for vector quantisation and recall. Install it first:</p>
+<p><code>gtsom</code> depends on <a href="https://github.com/jt-ut/vqlp">vqlp</a> for vector quantization and recall. <strong><code>vqlp</code> is not published on PyPI</strong> and must be installed manually from GitHub <em>before</em> installing <code>gtsom</code>:</p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/jt-ut/vqlp.git
+pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/jt-ut/gtsom.git
 </code></pre></div>
+<p><code>vqlp</code> itself depends on <a href="https://github.com/facebookresearch/faiss">faiss</a> (<code>faiss-cpu</code> on PyPI). If <code>vqlp</code>'s installation fails on faiss, install <code>faiss-cpu</code> for your platform first — note that prebuilt wheels are not available for all platforms (e.g. some Apple Silicon configurations), in which case consult the <a href="https://github.com/facebookresearch/faiss/blob/main/INSTALL.md">faiss installation instructions</a>.</p>
 <p>For parallel prototype updates (recommended for large datasets):</p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;git+https://github.com/jt-ut/gtsom.git[parallel]&quot;</span>
 </code></pre></div>
@@ -591,30 +593,30 @@
                   <span class="n">cluster_std</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
 <span class="n">X</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
 
-<span class="c1"># Initialise a 10x10 hexagonal SOM</span>
-<span class="n">som</span> <span class="o">=</span> <span class="n">GTSOM</span><span class="o">.</span><span class="n">from_grid</span><span class="p">(</span>
+<span class="c1"># Configure the learning schedule</span>
+<span class="n">som</span> <span class="o">=</span> <span class="n">GTSOM</span><span class="p">(</span>
+    <span class="n">rho_0</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span>              <span class="c1"># initial neighborhood bandwidth</span>
+    <span class="n">rho_f</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>              <span class="c1"># final neighborhood bandwidth</span>
+    <span class="n">halflife_epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+    <span class="n">n_jobs</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>              <span class="c1"># use all CPU cores (requires numba)</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Initialize a 10x10 hexagonal SOM</span>
+<span class="n">som</span><span class="o">.</span><span class="n">from_grid</span><span class="p">(</span>
     <span class="n">X</span><span class="p">,</span>
     <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
     <span class="n">coord_init</span><span class="o">=</span><span class="s1">&#39;hex&#39;</span><span class="p">,</span>
     <span class="n">W_init</span><span class="o">=</span><span class="s1">&#39;random&#39;</span><span class="p">,</span>
-    <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
     <span class="n">labels</span><span class="o">=</span><span class="n">y</span><span class="p">,</span>
-<span class="p">)</span>
-
-<span class="c1"># Configure the learning schedule</span>
-<span class="n">som</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
-    <span class="n">rho_0</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span>       <span class="c1"># initial neighbourhood bandwidth</span>
-    <span class="n">rho_f</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>       <span class="c1"># final neighbourhood bandwidth</span>
-    <span class="n">target_epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
-    <span class="n">n_jobs</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>       <span class="c1"># use all CPU cores (requires numba)</span>
 <span class="p">)</span>
 
 <span class="c1"># Train</span>
 <span class="n">som</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_epochs</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
 
-<span class="c1"># Visualise</span>
+<span class="c1"># Visualize</span>
 <span class="n">fig</span> <span class="o">=</span> <span class="n">som</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">color_by</span><span class="o">=</span><span class="s1">&#39;labels&#39;</span><span class="p">)</span>
-<span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s1">&#39;som.png&#39;</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">150</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;som.png&#39;</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">150</span><span class="p">)</span>
 
 <span class="c1"># Map data to output coordinates</span>
 <span class="n">coords</span> <span class="o">=</span> <span class="n">som</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>   <span class="c1"># (N, 2) array of lattice positions</span>
