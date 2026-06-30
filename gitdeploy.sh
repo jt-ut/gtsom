@@ -3,7 +3,7 @@ set -e
 
 git add -A                                   # stage everything outstanding
 # Edit message as needed
-git commit -m "Remove .gitignore"
+git commit -m "Restore .gitignore"
 #git commit -m "Code review: fix docstrings, remove stale API refs, spelling, minor guards
 #
 #- Fix ExponentialAnneal docstring example (schedule(20) was wrong)
